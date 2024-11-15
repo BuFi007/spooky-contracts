@@ -1,2 +1,2 @@
 # spooky-contracts
-Foundry repository for a bu.finance
+Foundry repository for bu.finance
