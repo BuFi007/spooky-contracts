@@ -1,0 +1,7 @@
+out/
+cache/
+broadcast/
+.svm/
+
+# local compiler downloads used by the bytecode check
+.tools/

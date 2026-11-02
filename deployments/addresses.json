@@ -1,0 +1,160 @@
+{
+  "notes": "Mainnet addresses whose runtime bytecode matches packages/ under solc (see bytecode-hashes.json). Explorers: Arc https://explorer.arc.io/address/<address> and Avalanche https://snowtrace.io/address/<address>. CREATE2 factory 0x4e59b44847b379578588920cA78FbF26c0B4956C.",
+  "owners": {
+    "arcOpsSafe": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
+    "avalancheOpsSafe": "0xa3a40fa2d82c0224c40b1ed7e07cb474b7d1468b"
+  },
+  "inScope": [
+    {
+      "contract": "TreasuryConduit",
+      "package": "packages/treasury-conduits",
+      "chains": {
+        "43114": {
+          "address": "0x49c89b198321ed0782a4f9a44de2b237ebd77cf0",
+          "bytecode": "exact",
+          "owner": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09"
+        },
+        "5042": {
+          "address": "0xa9817049f0a48d4653719465a7829e85b3a415e7",
+          "bytecode": "exact",
+          "owner": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09"
+        }
+      }
+    },
+    {
+      "contract": "TreasuryConduitPermit2",
+      "package": "packages/treasury-conduits",
+      "chains": {
+        "43114": {
+          "address": "0xaebb9c395ab6d627eb0defc3b16e7f49dc30c19f",
+          "bytecode": "immutables",
+          "owner": "0xa3a40fa2d82c0224c40b1ed7e07cb474b7d1468b"
+        },
+        "5042": {
+          "address": "0xb63da0934e2a89169f89eed0679c35cc4d5959a5",
+          "bytecode": "immutables",
+          "owner": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09"
+        }
+      }
+    },
+    {
+      "contract": "TreasuryBridgeConduitV2",
+      "package": "packages/treasury-conduits",
+      "chains": {
+        "43114": {
+          "address": "0x41422093ef6d03fbd3c0a2e3a6a6f69b1cad4409",
+          "bytecode": "exact",
+          "owner": "0xa3a40fa2d82c0224c40b1ed7e07cb474b7d1468b"
+        },
+        "5042": {
+          "address": "0x41422093ef6d03fbd3c0a2e3a6a6f69b1cad4409",
+          "bytecode": "exact",
+          "owner": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09"
+        }
+      }
+    },
+    {
+      "contract": "TreasuryRedeemConduit",
+      "package": "packages/treasury-conduits",
+      "chains": {
+        "5042": {
+          "address": "0x361340f0b3a8ec00067ea3c024ae6919a2a0d06a",
+          "bytecode": "immutables",
+          "owner": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09"
+        }
+      }
+    },
+    {
+      "contract": "InvoiceShelf",
+      "package": "packages/fx-recibu/hub",
+      "chains": {
+        "5042": {
+          "address": "0x8d3006f7be5b5e6e5b7709889a2e5d9ee4d3cd0a",
+          "bytecode": "immutables"
+        }
+      }
+    },
+    {
+      "contract": "WorkspaceTierRegistry",
+      "package": "packages/fx-recibu/hub",
+      "chains": {
+        "5042": {
+          "address": "0xfe06281b464d53f00cceca504114263c689e56fe",
+          "bytecode": "immutables"
+        }
+      }
+    },
+    {
+      "contract": "MultiTokenReceivableEscrow",
+      "package": "packages/fx-recibu/hub",
+      "chains": {
+        "5042": {
+          "address": "0xbb4b6bbdaeb3136571d33742385a1ae59cee57ab",
+          "bytecode": "exact",
+          "defaultAdmin": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09"
+        }
+      }
+    },
+    {
+      "contract": "RecibuMemoRouter",
+      "package": "packages/fx-recibu/hub",
+      "chains": {
+        "5042": {
+          "address": "0x208fbdf4268c87c475189d9ecd7d59b4766e75cb",
+          "bytecode": "immutables"
+        }
+      }
+    },
+    {
+      "contract": "SpokeMemoConduit",
+      "package": "packages/fx-recibu/spoke-cctp",
+      "chains": {
+        "43114": {
+          "address": "0x7b5b1425bb621b014b7257a0d0caf88c453e33c8",
+          "bytecode": "immutables"
+        }
+      }
+    },
+    {
+      "contract": "MemoConduit",
+      "package": "packages/fx-recibu/memo-v1",
+      "note": "v1 MemoConduit. Same runtime bytecode on both chains. Distinct from the CCTP parent under spoke-cctp.",
+      "chains": {
+        "43114": {
+          "address": "0x536268d0a6c32a7161ba146f5673dfcf13f1ffe2",
+          "bytecode": "immutables"
+        },
+        "5042": {
+          "address": "0x516340a244132c62bedae5f886fd35845af16ba2",
+          "bytecode": "immutables"
+        }
+      }
+    }
+  ],
+  "recordedNotInScope": [
+    {
+      "name": "Arc factoring admin Safe",
+      "chainId": 5042,
+      "address": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
+      "why": "171-byte Safe proxy. Owner of the Arc treasury conduits and default admin of MultiTokenReceivableEscrow. Safe source is not part of this audit."
+    },
+    {
+      "name": "Avalanche conduit owner Safe",
+      "chainId": 43114,
+      "address": "0xa3a40fa2d82c0224c40b1ed7e07cb474b7d1468b",
+      "why": "171-byte Safe proxy. Owner of Avalanche TreasuryConduitPermit2 and TreasuryBridgeConduitV2. Safe source is not part of this audit."
+    },
+    {
+      "name": "BUFIIdentityRegistry",
+      "chainId": 5042,
+      "address": "0xe3d6de22135bbd463c0a97a5196782cbcc3f3322",
+      "why": "Passport-adjacent implementation. Excluded. InvoiceShelf keeps the interface only."
+    },
+    {
+      "name": "BUFIReputationRegistry",
+      "chainId": 5042,
+      "address": "0x30015db351747e39102da3f65f51ce0207052415",
+      "why": "Passport-adjacent implementation. Excluded. InvoiceShelf keeps the interface only."
+    }
+  ]
+}

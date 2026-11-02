@@ -1,0 +1,208 @@
+{
+  "contracts": {
+    "src/bufi/conduit/TreasuryConduit.sol:TreasuryConduit": {
+      "package": "treasury-conduits",
+      "compilerProfile": "treasury",
+      "solc": "0.8.24",
+      "evmVersion": "paris",
+      "path": "src/bufi/conduit/TreasuryConduit.sol",
+      "contract": "TreasuryConduit",
+      "compilerDeployedSha256": "dc45c6e80d9508f707935c328e2fb06cb002dd87f0b7ff4388803ad7d7140679",
+      "immutableSlots": 0,
+      "chains": {
+        "43114": {
+          "address": "0x49c89b198321ed0782a4f9a44de2b237ebd77cf0",
+          "onchainSha256": "dc45c6e80d9508f707935c328e2fb06cb002dd87f0b7ff4388803ad7d7140679",
+          "exact": true,
+          "matchAfterImmutables": true
+        },
+        "5042": {
+          "address": "0xa9817049f0a48d4653719465a7829e85b3a415e7",
+          "onchainSha256": "dc45c6e80d9508f707935c328e2fb06cb002dd87f0b7ff4388803ad7d7140679",
+          "exact": true,
+          "matchAfterImmutables": true
+        }
+      }
+    },
+    "src/bufi/conduit/TreasuryConduitPermit2.sol:TreasuryConduitPermit2": {
+      "package": "treasury-conduits",
+      "compilerProfile": "permit2",
+      "solc": "0.8.24",
+      "evmVersion": "paris",
+      "path": "src/bufi/conduit/TreasuryConduitPermit2.sol",
+      "contract": "TreasuryConduitPermit2",
+      "compilerDeployedSha256": "6a3bc68e65776a0c22d94831fa14095d4b78dc14cc31fe13d78c60278d7848cd",
+      "immutableSlots": 5,
+      "chains": {
+        "43114": {
+          "address": "0xaebb9c395ab6d627eb0defc3b16e7f49dc30c19f",
+          "onchainSha256": "fb5f39f41f2d912645db3efb2103c80f60db87a60f8beb5b58d89827634db735",
+          "exact": false,
+          "matchAfterImmutables": true
+        },
+        "5042": {
+          "address": "0xb63da0934e2a89169f89eed0679c35cc4d5959a5",
+          "onchainSha256": "fb5f39f41f2d912645db3efb2103c80f60db87a60f8beb5b58d89827634db735",
+          "exact": false,
+          "matchAfterImmutables": true
+        }
+      }
+    },
+    "src/bufi/conduit/TreasuryBridgeConduitV2.sol:TreasuryBridgeConduitV2": {
+      "package": "treasury-conduits",
+      "compilerProfile": "treasury",
+      "solc": "0.8.24",
+      "evmVersion": "paris",
+      "path": "src/bufi/conduit/TreasuryBridgeConduitV2.sol",
+      "contract": "TreasuryBridgeConduitV2",
+      "compilerDeployedSha256": "9c2cc342e0dbeafdd82dc0e072a19e0dd90ddedb9862222c22939d0e349caa83",
+      "immutableSlots": 0,
+      "chains": {
+        "43114": {
+          "address": "0x41422093ef6d03fbd3c0a2e3a6a6f69b1cad4409",
+          "onchainSha256": "9c2cc342e0dbeafdd82dc0e072a19e0dd90ddedb9862222c22939d0e349caa83",
+          "exact": true,
+          "matchAfterImmutables": true
+        },
+        "5042": {
+          "address": "0x41422093ef6d03fbd3c0a2e3a6a6f69b1cad4409",
+          "onchainSha256": "9c2cc342e0dbeafdd82dc0e072a19e0dd90ddedb9862222c22939d0e349caa83",
+          "exact": true,
+          "matchAfterImmutables": true
+        }
+      }
+    },
+    "src/bufi/conduit/TreasuryRedeemConduit.sol:TreasuryRedeemConduit": {
+      "package": "treasury-conduits",
+      "compilerProfile": "treasury",
+      "solc": "0.8.24",
+      "evmVersion": "paris",
+      "path": "src/bufi/conduit/TreasuryRedeemConduit.sol",
+      "contract": "TreasuryRedeemConduit",
+      "compilerDeployedSha256": "c84ed19a6f780e33e893c38bc94e9fa513cb99e44bd4e88d380126d9ab636a5a",
+      "immutableSlots": 7,
+      "chains": {
+        "5042": {
+          "address": "0x361340f0b3a8ec00067ea3c024ae6919a2a0d06a",
+          "onchainSha256": "84061865202046f2ecc7b886d92634ebb748f0e5d8c5175dd2f9d1f00ea6b31c",
+          "exact": false,
+          "matchAfterImmutables": true
+        }
+      }
+    },
+    "src/invoice/InvoiceShelf.sol:InvoiceShelf": {
+      "package": "fx-recibu/hub",
+      "compilerProfile": "fx",
+      "solc": "0.8.26",
+      "evmVersion": "cancun",
+      "path": "src/invoice/InvoiceShelf.sol",
+      "contract": "InvoiceShelf",
+      "compilerDeployedSha256": "fdaa22f020e8acc0d457b4dcd52d59b50c7b0130464a0ee6d322e98391b86c46",
+      "immutableSlots": 39,
+      "chains": {
+        "5042": {
+          "address": "0x8d3006f7be5b5e6e5b7709889a2e5d9ee4d3cd0a",
+          "onchainSha256": "09af5094a21b4d1d08b9e1a1ad07ab884f20b431b728e7564b5bff9b27ce87e9",
+          "exact": false,
+          "matchAfterImmutables": true
+        }
+      }
+    },
+    "src/credit/WorkspaceTierRegistry.sol:WorkspaceTierRegistry": {
+      "package": "fx-recibu/hub",
+      "compilerProfile": "fx",
+      "solc": "0.8.26",
+      "evmVersion": "cancun",
+      "path": "src/credit/WorkspaceTierRegistry.sol",
+      "contract": "WorkspaceTierRegistry",
+      "compilerDeployedSha256": "e565e93a08c16761e3056d96605472ef47a18221412ada75be311b204fed28c2",
+      "immutableSlots": 6,
+      "chains": {
+        "5042": {
+          "address": "0xfe06281b464d53f00cceca504114263c689e56fe",
+          "onchainSha256": "4ee5eaf0d41de8b0b8c884427eb264f08b9d4fa1b591f6e1350714582debb1dd",
+          "exact": false,
+          "matchAfterImmutables": true
+        }
+      }
+    },
+    "src/rails/MultiTokenReceivableEscrow.sol:MultiTokenReceivableEscrow": {
+      "package": "fx-recibu/hub",
+      "compilerProfile": "fx",
+      "solc": "0.8.26",
+      "evmVersion": "cancun",
+      "path": "src/rails/MultiTokenReceivableEscrow.sol",
+      "contract": "MultiTokenReceivableEscrow",
+      "compilerDeployedSha256": "59ccf96bb1032ab191fa8b1d755c2410cdcd3c1a26b8f850e91d0b4c696a59b8",
+      "immutableSlots": 0,
+      "chains": {
+        "5042": {
+          "address": "0xbb4b6bbdaeb3136571d33742385a1ae59cee57ab",
+          "onchainSha256": "59ccf96bb1032ab191fa8b1d755c2410cdcd3c1a26b8f850e91d0b4c696a59b8",
+          "exact": true,
+          "matchAfterImmutables": true
+        }
+      }
+    },
+    "src/rails/RecibuMemoRouter.sol:RecibuMemoRouter": {
+      "package": "fx-recibu/hub",
+      "compilerProfile": "fx",
+      "solc": "0.8.26",
+      "evmVersion": "cancun",
+      "path": "src/rails/RecibuMemoRouter.sol",
+      "contract": "RecibuMemoRouter",
+      "compilerDeployedSha256": "638d70ad37145e6e06c994a87aedd1282631d82348a3d10e67d3dbdf6112bf8d",
+      "immutableSlots": 7,
+      "chains": {
+        "5042": {
+          "address": "0x208fbdf4268c87c475189d9ecd7d59b4766e75cb",
+          "onchainSha256": "a8ce45a6a75fc4b525015bc10aeeb13a865890ce06c2cb247e9b6ae4e90a6653",
+          "exact": false,
+          "matchAfterImmutables": true
+        }
+      }
+    },
+    "src/rails/SpokeMemoConduit.sol:SpokeMemoConduit": {
+      "package": "fx-recibu/spoke-cctp",
+      "compilerProfile": "fx",
+      "solc": "0.8.26",
+      "evmVersion": "cancun",
+      "path": "src/rails/SpokeMemoConduit.sol",
+      "contract": "SpokeMemoConduit",
+      "compilerDeployedSha256": "78f297345f6665db3d9bd0c19bb816e8a24d86b594fcbcf9f1b8df51b45f1875",
+      "immutableSlots": 28,
+      "chains": {
+        "43114": {
+          "address": "0x7b5b1425bb621b014b7257a0d0caf88c453e33c8",
+          "onchainSha256": "38caaae1ad2c2d0ea929a9690b6100f580cf1e3ab89a008773b3f8c9f21f2841",
+          "exact": false,
+          "matchAfterImmutables": true
+        }
+      }
+    },
+    "src/rails/MemoConduit.sol:MemoConduit": {
+      "package": "fx-recibu/memo-v1",
+      "compilerProfile": "fx",
+      "solc": "0.8.26",
+      "evmVersion": "cancun",
+      "path": "src/rails/MemoConduit.sol",
+      "contract": "MemoConduit",
+      "compilerDeployedSha256": "9a3641f489f8933647fa52ebbdf5b2e96fba05aac8049166c06fd887b67fd24b",
+      "immutableSlots": 2,
+      "chains": {
+        "43114": {
+          "address": "0x536268d0a6c32a7161ba146f5673dfcf13f1ffe2",
+          "onchainSha256": "63261aec1127c272bf419cd7503ad82ef23abcb86656d4c220f328aa95a7d683",
+          "exact": false,
+          "matchAfterImmutables": true
+        },
+        "5042": {
+          "address": "0x516340a244132c62bedae5f886fd35845af16ba2",
+          "onchainSha256": "63261aec1127c272bf419cd7503ad82ef23abcb86656d4c220f328aa95a7d683",
+          "exact": false,
+          "matchAfterImmutables": true
+        }
+      }
+    }
+  }
+}
