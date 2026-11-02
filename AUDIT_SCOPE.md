@@ -92,4 +92,6 @@ Checked with solc standard-json against `eth_getCode` on 2026-11-02. `exact` is 
 
 ## Sources commit
 
-Sources commit: not yet recorded.
+Sources commit: `f32822e93cceaa1159b1c08d41ec88d372026989`
+
+That commit is the tree of in-scope sources and the hashes above. This document's later commit only records the hash. Audit `f32822e93cceaa1159b1c08d41ec88d372026989`.
