@@ -10,28 +10,33 @@ Sources were taken from Sourcify-verified standard-json inputs and checked again
 - Arc hub, including MultiTokenReceivableEscrow and RecibuMemoRouter: `fx-recibu` branch `feat/recibu-memo-router-mainnet`, commit `1525532`.
 - SpokeMemoConduit and the CCTP MemoConduit parent: `fx-recibu` branch `feat/memo-conduit-cctp-mainnet`, commit `8aab86a`.
 - v1 MemoConduit: the verified sources at the Arc and Avalanche addresses below. Arc `0x516340a244132c62bedae5f886fd35845af16ba2`, Avalanche `0x536268d0a6c32a7161ba146f5673dfcf13f1ffe2`.
+- claim-vault: desk-v1 commit `c22110966e` (imported in `ab83e5e`). `upstream/PeanutV4.4.upstream.sol` and `upstream/bufi.diff` stay outside the compile set.
+- StableFX `RecibuSettlementGuardHook`, `IV4Types`, and the hook's `IInvoiceShelf`: fx-recibu `main` commit `7330e6c` (imported in `ab83e5e`). Undeployed. No mainnet bytecode check.
 
 ## Compiler
 
 | Profile | solc | EVM | Settings |
 | --- | --- | --- | --- |
 | treasury, permit2 | 0.8.24+commit.e11b9ed9 | paris | optimizer 200, viaIR, bytecodeHash ipfs |
-| fx (hub, spoke-cctp, memo-v1) | 0.8.26+commit.8a97fa7a | cancun | optimizer 200, viaIR, bytecodeHash ipfs |
+| fx (hub, spoke-cctp, memo-v1, stablefx) | 0.8.26+commit.8a97fa7a | cancun | optimizer 200, viaIR, bytecodeHash ipfs |
+| claim-vault | 0.8.23 | paris | optimizer 99999, viaIR off. Solar via `forge --use solar` |
 
 `script/verify_bytecode.py` replays the verified remapping list. That list is part of the metadata CBOR. `forge build` from the repository root uses different source-unit names, so its metadata suffix is not the deployment bytecode. Solar bytecode is not the deployment bytecode, and Solar init code produces different CREATE2 addresses.
 
 ## Excluded
 
-- `packages/treasury-conduits/lib/**` and `packages/fx-recibu/lib/**`. Vendored OpenZeppelin files from the verified inputs (45 Solidity files across two snapshots). Not hashed below.
-- `packages/claim-vault/`. No sources. Intended import is desk-v1 `c22110966e` / [PR #1081](https://github.com/BuFi007/desk-v1/pull/1081). `upstream/PeanutV4.4.upstream.sol` and `bufi.diff` would stay outside the compile set, and that package's `lib/` would stay excluded.
+- `packages/treasury-conduits/lib/**` and `packages/fx-recibu/lib/**`. Vendored OpenZeppelin files from the verified inputs. Not hashed below.
+- `packages/claim-vault/lib/**`. OpenZeppelin contracts v4.9.2 `e50c24f5839db17f46991478384bfda14acfb830` (the Peanut v4.4 submodule gitlink) and forge-std v1.15.0 `0844d7e1fc5e60d77b68e469bff60265f236c398`. The claim-vault README names forge-std `bb4827bb`; that object is not on `foundry-rs/forge-std`, so the v1.15.0 tag is the pin. Not hashed below.
+- `packages/claim-vault/upstream/**`. Provenance, outside the compile set. `PeanutV4.4.upstream.sol` sha256 `2824bc0db2de14dea6da66d2abc7970ed28febabd675fbf7df10f9b249743178`. `bufi.diff` sha256 `ac76e42d9bd5df8cb405e948762c830547c9f665d31a1ada69f688fbb548bcbb`.
 - Identity and reputation registry implementations. Interfaces imported by InvoiceShelf remain in scope.
 - Testnet-only and removed contracts: gateway-guard, GatewayTreasury, v0.7 session and recipient hooks, TreasuryEarnVault, BUFIOracle, InvoiceMemoRouter, InvoiceSettlement, old ReceivableEscrow, BUAttestation, KybWorkspacePolicy, CRE extractors deleted in fx-recibu PR #12.
 - ens, escrow, recibo, fx-telarana, fx-sobre, fx-recibu-loans, fantasmita-ars, fantasmita-passport, kawaii-raindrops, stablecoin-curve-punk-nft, BDACS/KRW1.
-- Smoke tests under `packages/*/test`. They are not deployed bytecode. The upstream suite, including `test_nested_selfAsOwner_refusedAtConstruction`, was not imported and did not reproduce.
+- Tests under `packages/*/test`, including the claim-vault suite. `test_nested_selfAsOwner_refusedAtConstruction` is not in that suite.
+- `packages/fx-recibu/stablefx/test-pending/GuardHook.t.sol` (sha256 `25ae87ff2f1210931c20c36405dd35f24e7d5dcefb14597527630614ca90353f`). It is the fx-recibu `7330e6c` test and it is not compiled: its imports name identity and reputation implementations and `StrictAuthorityInvoiceVerifier`, which are not in this tree. See `test-pending/README.md`.
 
 ## Not yet in the tree
 
-StableFX `RecibuSettlementGuardHook`, `IV4Types`, and the GuardHook tests are requested in-scope work and are absent. They were not in a recovered mainnet verification, and `fx-recibu` could not be read. SwapDeposit and a planned treasury v3 were not found as verified mainnet deployments and were not invented.
+SwapDeposit and a planned treasury v3 were not found as verified mainnet deployments and were not invented.
 
 ## In-scope sources
 
@@ -39,6 +44,13 @@ sha256 of the file bytes.
 
 | sha256 | Path |
 | --- | --- |
+| `fc6aa56c6ef16451490f2d56abf583e5e28902f6bc8ac988207f12d0df759042` | `packages/claim-vault/src/V4/PeanutV4.4.sol` |
+| `02e10daee28f0898f226ef317dfa03e497f53cdae04fb54bf1fd94df703d67fe` | `packages/claim-vault/src/deploy/ClaimVaultDeployer.sol` |
+| `91674840d6e949821e9a0332c5c96daf3a41c80ab60c6289fdef12fe46ba9e21` | `packages/claim-vault/src/interfaces/IPeanutV4MFAVault.sol` |
+| `6cbd702a9dc9fc9b82eb36f53bfca2b17b55be4f732222254050136bf2578982` | `packages/claim-vault/src/interfaces/ISignatureTransfer.sol` |
+| `7ccf045fdbb810730ea23fd42319888c820bb6e27dabf9636fa12634d552f4a8` | `packages/claim-vault/src/payroll/PayrollBatch.sol` |
+| `8fb4f50fcbcb824908fbfa0946ab2f9bae0baacd755cad8ee4d608e9b68306e7` | `packages/claim-vault/src/util/IEIP3009.sol` |
+| `2b36e4e1e903f1a18b5480c75d4fa77dc5e0359d4f2545f020ceb6691c57b309` | `packages/claim-vault/src/util/IL2ECO.sol` |
 | `841d9afec22f958a7dd24e7cb8a63ec68530f766a4ea73224e58cbb5436f1078` | `packages/fx-recibu/hub/src/credit/WorkspaceTierRegistry.sol` |
 | `4ae0f9ef70bae25ab88fd703d6fa02ef409ec97b9c97be27496a2e08aabeb18c` | `packages/fx-recibu/hub/src/interfaces/IBUFIIdentityRegistry.sol` |
 | `985bbb7607bb35346c172fc106a6d357646d7342b97ff8c44c5db75d26149cec` | `packages/fx-recibu/hub/src/interfaces/IBUFIReputationRegistry.sol` |
@@ -60,6 +72,9 @@ sha256 of the file bytes.
 | `2e33f96609311446f9ed4ec83c704e010dc7af09df2439444bce62a880b783c2` | `packages/fx-recibu/spoke-cctp/src/rails/MemoConduit.sol` |
 | `3b7c96b99895ffef250bcebcfd488d8e81ae327738f81ad12fd4da5017f8cc75` | `packages/fx-recibu/spoke-cctp/src/rails/MemoConduitCctpConfig.sol` |
 | `175940ca25f23dbec88cfc7e05e8683ec69bf559a66e05abedc0140bac81de38` | `packages/fx-recibu/spoke-cctp/src/rails/SpokeMemoConduit.sol` |
+| `a08e7dccb3c76aa533b8444e6cab4dbe7ee39e2eae56e7c1b78800a8cb05d74a` | `packages/fx-recibu/stablefx/src/hooks/RecibuSettlementGuardHook.sol` |
+| `b30eea067f0c68ddffcb1347500af314d04986082c79460408caac7511d27860` | `packages/fx-recibu/stablefx/src/interfaces/IInvoiceShelf.sol` |
+| `e3c14a4bff118f449c73cd469f34487f14f2ea0f62f12b6ac947210e280963fe` | `packages/fx-recibu/stablefx/src/interfaces/IV4Types.sol` |
 | `2e75ebb42979945831bf6ccbaffe7eaad9f02cd088fdaf9ca7326bb6748e14f6` | `packages/treasury-conduits/src/bufi/conduit/TreasuryBridgeConduitV2.sol` |
 | `00617d043d62bf630bbfe1694d6007f24a7788a04fb23f553c800ae83f5c204c` | `packages/treasury-conduits/src/bufi/conduit/TreasuryConduit.sol` |
 | `1ffb77f15f131320ecc03f4257b8f2731de8dcd24164d48f6cb3e3c7990609ee` | `packages/treasury-conduits/src/bufi/conduit/TreasuryConduitPermit2.sol` |
@@ -90,8 +105,8 @@ Checked with solc standard-json against `eth_getCode` on 2026-11-02. `exact` is 
 | MemoConduit v1 | 43114 | `0x536268d0a6c32a7161ba146f5673dfcf13f1ffe2` | immutables | `63261aec1127c272bf419cd7503ad82ef23abcb86656d4c220f328aa95a7d683` |
 | MemoConduit v1 | 5042 | `0x516340a244132c62bedae5f886fd35845af16ba2` | immutables | `63261aec1127c272bf419cd7503ad82ef23abcb86656d4c220f328aa95a7d683` |
 
+`RecibuSettlementGuardHook` is in scope and undeployed. There is no mainnet address and no bytecode match for it.
+
 ## Sources commit
 
-Sources commit: `f32822e93cceaa1159b1c08d41ec88d372026989`
-
-That commit is the tree of in-scope sources and the hashes above. This document's later commit only records the hash. Audit `f32822e93cceaa1159b1c08d41ec88d372026989`.
+Sources commit: not yet recorded.

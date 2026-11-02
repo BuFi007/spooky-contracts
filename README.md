@@ -12,9 +12,10 @@ The private source repositories (`BUFI-6900`, `desk-v1`, `fx-recibu`) were not r
 | `packages/fx-recibu/hub` | Arc factoring hub, including MultiTokenReceivableEscrow and RecibuMemoRouter | `fx-hub` (solc 0.8.26, cancun) |
 | `packages/fx-recibu/spoke-cctp` | SpokeMemoConduit and the CCTP MemoConduit parent | `fx-spoke` |
 | `packages/fx-recibu/memo-v1` | v1 MemoConduit, live on Arc and Avalanche | `fx-memo-v1` |
-| `packages/claim-vault` | Not imported. See that package README | none |
+| `packages/fx-recibu/stablefx` | RecibuSettlementGuardHook, IV4Types, IInvoiceShelf. Undeployed. From fx-recibu `7330e6c` | `fx-stablefx` (solc 0.8.26, cancun) |
+| `packages/claim-vault` | PeanutV4.4 BUFI fork and PayrollBatch. From desk-v1 `c22110966e` | `claim-vault` (solc 0.8.23, paris, optimizer 99999) |
 
-Treasury and fx-recibu each vendor their own OpenZeppelin snapshot under `lib/`. The files are not interchangeable. A single `@openzeppelin/contracts/` remapping would change mainnet bytecode. The snapshots are copied from the verified compiler inputs rather than pinned with a git tag, because a tag can move relative to the files that were actually compiled.
+Treasury, fx-recibu, and claim-vault each vendor their own OpenZeppelin snapshot under `lib/`. The files are not interchangeable. A single `@openzeppelin/contracts/` remapping would change mainnet bytecode. Treasury and fx-recibu copies come from the verified compiler inputs. claim-vault pins OpenZeppelin v4.9.2 `e50c24f5839db17f46991478384bfda14acfb830` (Peanut v4.4's submodule) and forge-std v1.15.0 `0844d7e1fc5e60d77b68e469bff60265f236c398`. `packages/claim-vault/upstream/` stays outside the compile set.
 
 ## Deployed addresses
 
@@ -37,14 +38,9 @@ Arc factoring admin Safe: [`0x47Dc7D18A6E3a79F696714E7D47456a49B430D09`](https:/
 
 Out of scope and not imported: gateway-guard, GatewayTreasury, v0.7 session and recipient hooks, TreasuryEarnVault, BUFI identity and reputation registry implementations, BUFIOracle, InvoiceMemoRouter, InvoiceSettlement, the old ReceivableEscrow, BUAttestation, KybWorkspacePolicy, CRE extractors, and the named out-of-scope products (ens, escrow, recibo, fx-telarana, fx-sobre, fx-recibu-loans, fantasmita-ars, fantasmita-passport, kawaii-raindrops, stablecoin-curve-punk-nft, BDACS/KRW1).
 
-Still missing from the requested audit set, because the git trees were unreadable and the contracts were not in a recovered mainnet verification:
+`RecibuSettlementGuardHook` is in the audit set and has no mainnet deployment. `GuardHook.t.sol` is in `packages/fx-recibu/stablefx/test-pending/` and is not compiled. SwapDeposit and a planned treasury v3 are still absent. `test_nested_selfAsOwner_refusedAtConstruction` is not in the claim-vault suite.
 
-- StableFX `RecibuSettlementGuardHook`, `IV4Types`, and the GuardHook tests.
-- claim-vault at desk-v1 `c22110966e` (PeanutV4.4 upstream file and `bufi.diff` belong outside the compile set).
-- SwapDeposit adapter and the planned treasury v3, if they have no mainnet deployment yet.
-- The upstream Foundry suites, including `test_nested_selfAsOwner_refusedAtConstruction`.
-
-Notice pull requests on `BUFI-6900`, `fx-recibu`, and `desk-v1` were not opened. Those repositories are not visible to the token this environment uses.
+Notice pull requests on the private repos are handled separately.
 
 ## Build and test
 
@@ -57,7 +53,7 @@ Foundry 1.9.0. From the repository root:
 ./script/test-all.sh --use solar
 ```
 
-Profiles are `default`, `fx-hub`, `fx-spoke`, and `fx-memo-v1`. The smoke tests deploy TreasuryConduit, TreasuryBridgeConduitV2, TreasuryRedeemConduit, and MultiTokenReceivableEscrow. Spoke and v1 MemoConduit profiles compile and have no tests. `test_nested_selfAsOwner_refusedAtConstruction` is not in this tree, so it does not reproduce.
+Profiles are `default`, `fx-hub`, `fx-spoke`, `fx-memo-v1`, `fx-stablefx`, and `claim-vault`. The smoke tests deploy TreasuryConduit, TreasuryBridgeConduitV2, TreasuryRedeemConduit, and MultiTokenReceivableEscrow. Spoke, v1 MemoConduit, and stablefx compile; stablefx has no compiled tests. claim-vault runs 109 tests under solc 0.8.23 and under Solar, with 9 fork tests skipped unless `ARC_FORK` or `ARC_MAINNET_FORK` is set. Fuzz runs are 1024.
 
 Bytecode check, online against the public RPCs, then offline against the recorded hashes:
 

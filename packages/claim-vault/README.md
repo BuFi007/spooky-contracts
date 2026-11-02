@@ -41,8 +41,10 @@ Evidence that this is the SDK's v4.4:
    evm `paris`, reproduces the runtime bytecode Peanut deployed as `v4.4` on Polygon
    (`0x3B92cB30bc3C9AD8Ae24F16E73dC59e08C520f92`) and Gnosis
    (`0x108476aCb5E7Fad5CD71CC77EbD617e1b9006a76`) byte-for-byte, excluding the CBOR metadata tail.
-   The default profile now compiles with Solar (`solc = "solar"`). Solar keeps the 0.8.23
-   pragma, optimizer 99999 and paris, and emits different bytecode from solc. Solar 0.2
+
+The monorepo profile `claim-vault` pins solc 0.8.23, optimizer 99999 and paris. Solar is
+`forge test --profile claim-vault --use solar` from the repository root (109 passed, 9 fork
+tests skipped without RPC). Solar emits different bytecode from solc. Solar 0.2
    codegen still changes that bytecode when `forge script`, `forge build` and `forge test`
    compile different file sets, so the redeploy address is whatever that `forge script`
    invocation prints. `packages/env` and `contracts/deployments.json` still name the solc

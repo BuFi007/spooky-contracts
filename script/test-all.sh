@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 args=("$@")
-profiles=(default fx-hub fx-spoke fx-memo-v1)
+profiles=(default fx-hub fx-spoke fx-memo-v1 fx-stablefx claim-vault)
 for profile in "${profiles[@]}"; do
   echo "== forge test --profile ${profile} ${args[*]:-}"
   forge test --profile "${profile}" "${args[@]}"

@@ -22,7 +22,7 @@ The hub admin Safe on Arc mainnet is `0x47Dc7D18A6E3a79F696714E7D47456a49B430D09
 
 Testnet-only contracts were left out: BUFIOracle, InvoiceMemoRouter, InvoiceSettlement, the old ReceivableEscrow, BUAttestation, and KybWorkspacePolicy. CRE extractors removed in fx-recibu PR #12 are not here. Identity and reputation registry implementations are out of scope; `InvoiceShelf` still imports `IBUFIIdentityRegistry` and `IBUFIReputationRegistry`.
 
-`RecibuSettlementGuardHook`, `IV4Types`, and the GuardHook tests are in scope for StableFX and are not in this tree. They were not part of any mainnet verification recovered for the addresses below, and the git branch that contains them could not be read. Do not treat this package as a complete copy of the StableFX hook.
+`stablefx/` holds `RecibuSettlementGuardHook`, `IV4Types`, and the hook's `IInvoiceShelf` from fx-recibu `main` `7330e6c`. The hook is in scope and undeployed. Foundry profile `fx-stablefx` compiles it with solc 0.8.26, cancun, viaIR, optimizer 200, and with Solar. `GuardHook.t.sol` is in `stablefx/test-pending/` and is not compiled: it imports identity and reputation implementations and `StrictAuthorityInvoiceVerifier`, which are not in this tree.
 
 Comments inside `InvoiceShelf` still name Fantasmita, InvoiceMemoRouter, InvoiceSettlement, and BUFIOracle. Those comments are part of the deployed source and were not edited.
 

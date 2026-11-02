@@ -1,8 +1,9 @@
 # BUFI claim-vault — fork of Peanut Protocol PeanutV4.4 (see UPSTREAM.md).
-# Deploy compiler is Solar (ships with Forge). The 0.8.23 language version comes
-# from the source pragma. Optimizer 99999 and evm paris stay. Solar bytecode is
-# not Peanut's deployed v4.4 runtime and not the solc CREATE2 recipe already on
-# testnet. Solar 0.2 codegen (warning 2264) also changes initcode when forge script,
+# Language version is solc 0.8.23 (the source pragma). Solar is selected with
+# `forge build --use solar` / `forge test --use solar`, from this directory or
+# from the monorepo profile `claim-vault`. Optimizer 99999 and evm paris stay.
+# Solar bytecode is not Peanut's deployed v4.4 runtime and not the solc CREATE2
+# recipe already on testnet. Solar codegen also changes initcode when forge script,
 # forge build and forge test compile different file sets, so the redeploy address
 # is the one `forge script` prints for that invocation. The live registry
 # (packages/env, contracts/deployments.json) keeps the solc deployments until then.
@@ -13,7 +14,7 @@ libs = ["lib"]
 test = "test"
 optimizer = true
 optimizer_runs = 99999
-solc = "solar"
+solc = "0.8.23"
 # paris: no PUSH0, so the bytecode runs on Arc. The byte-for-byte match against
 # Peanut's deployed v4.4 (Polygon 0x3B92cB30…0f92, Gnosis 0x108476aC…6a76) required
 # solc 0.8.23. See README.md (Provenance).
