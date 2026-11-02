@@ -109,4 +109,6 @@ Checked with solc standard-json against `eth_getCode` on 2026-11-02. `exact` is 
 
 ## Sources commit
 
-Sources commit: not yet recorded.
+Sources commit: `ea1af1bc8c385f24cbd54cd1407293e078cf8cb0`
+
+That commit holds the in-scope sources, including claim-vault and the undeployed StableFX hook, and the hashes above. This later commit only records the hash. Audit `ea1af1bc8c385f24cbd54cd1407293e078cf8cb0`.
