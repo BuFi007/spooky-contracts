@@ -1,0 +1,51 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  solc:
+    name: forge solc
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.9.0
+      - name: build and test
+        run: |
+          chmod +x script/build-all.sh script/test-all.sh
+          ./script/build-all.sh
+          ./script/test-all.sh
+
+  solar:
+    name: forge solar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.9.0
+      - name: build and test under Solar
+        run: |
+          chmod +x script/build-all.sh script/test-all.sh
+          ./script/build-all.sh --use solar
+          ./script/test-all.sh --use solar
+
+  bytecode:
+    name: solc bytecode cross-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: install the deployment compilers
+        run: |
+          mkdir -p .tools
+          curl -fsSL -o .tools/solc-0.8.24 https://github.com/ethereum/solc-bin/raw/gh-pages/linux-amd64/solc-linux-amd64-v0.8.24+commit.e11b9ed9
+          curl -fsSL -o .tools/solc-0.8.26 https://github.com/ethereum/solc-bin/raw/gh-pages/linux-amd64/solc-linux-amd64-v0.8.26+commit.8a97fa7a
+          chmod +x .tools/solc-0.8.24 .tools/solc-0.8.26
+      - name: compare compiler output to the recorded deployment hashes
+        env:
+          SOLC_024: .tools/solc-0.8.24
+          SOLC_026: .tools/solc-0.8.26
+        run: python3 script/verify_bytecode.py --offline

@@ -1,0 +1,1 @@
+`fixtures` is a symlink to `packages/claim-vault/test/fixtures`. The claim-vault tests call `vm.readFile("test/fixtures/...")`, which is relative to this repository root when Foundry runs the `claim-vault` profile.

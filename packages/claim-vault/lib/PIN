@@ -1,0 +1,9 @@
+OpenZeppelin contracts v4.9.2
+commit e50c24f5839db17f46991478384bfda14acfb830
+tag v4.9.2
+same gitlink as peanutprotocol/peanut-contracts 5e94c815 lib/openzeppelin-contracts
+
+forge-std v1.15.0
+commit 0844d7e1fc5e60d77b68e469bff60265f236c398
+tag v1.15.0
+README names bb4827bb; that object is not on foundry-rs/forge-std. The v1.15.0 tag is the pin.

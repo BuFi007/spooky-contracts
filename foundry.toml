@@ -1,0 +1,112 @@
+# Solar-first Foundry project.
+# `forge build` / `forge build --use solar` compiles the default profile
+# (treasury-conduits). Other profiles are separate compiler inputs so each
+# deployment keeps the OpenZeppelin sources it was verified with.
+# Build every profile with `./script/build-all.sh`.
+#
+# `forge build` from this root uses source-unit names under packages/, so the
+# metadata suffix differs from mainnet. Bytecode equality is
+# `python3 script/verify_bytecode.py`, which replays the verified solc
+# standard-json (including the original remapping list).
+
+[profile.default]
+src = "packages/treasury-conduits/src"
+test = "packages/treasury-conduits/test"
+out = "out/treasury"
+libs = ["packages/treasury-conduits/lib"]
+solc = "0.8.24"
+via_ir = true
+optimizer = true
+optimizer_runs = 200
+evm_version = "paris"
+bytecode_hash = "ipfs"
+remappings = [
+    "@openzeppelin/contracts/=packages/treasury-conduits/lib/openzeppelin-contracts/contracts/",
+]
+
+[profile.fx-hub]
+src = "packages/fx-recibu/hub/src"
+test = "packages/fx-recibu/hub/test"
+out = "out/fx-hub"
+libs = ["packages/fx-recibu/lib"]
+solc = "0.8.26"
+via_ir = true
+optimizer = true
+optimizer_runs = 200
+evm_version = "cancun"
+bytecode_hash = "ipfs"
+remappings = [
+    "@openzeppelin/contracts/=packages/fx-recibu/lib/openzeppelin-contracts/contracts/",
+]
+
+[profile.fx-spoke]
+src = "packages/fx-recibu/spoke-cctp/src"
+test = "packages/fx-recibu/spoke-cctp/test"
+out = "out/fx-spoke"
+libs = ["packages/fx-recibu/lib"]
+solc = "0.8.26"
+via_ir = true
+optimizer = true
+optimizer_runs = 200
+evm_version = "cancun"
+bytecode_hash = "ipfs"
+remappings = [
+    "@openzeppelin/contracts/=packages/fx-recibu/lib/openzeppelin-contracts/contracts/",
+]
+
+[profile.fx-memo-v1]
+src = "packages/fx-recibu/memo-v1/src"
+test = "packages/fx-recibu/memo-v1/test"
+out = "out/fx-memo-v1"
+libs = ["packages/fx-recibu/lib"]
+solc = "0.8.26"
+via_ir = true
+optimizer = true
+optimizer_runs = 200
+evm_version = "cancun"
+bytecode_hash = "ipfs"
+remappings = [
+    "@openzeppelin/contracts/=packages/fx-recibu/lib/openzeppelin-contracts/contracts/",
+]
+
+[profile.fx-stablefx]
+src = "packages/fx-recibu/stablefx/src"
+test = "packages/fx-recibu/stablefx/test"
+out = "out/fx-stablefx"
+libs = ["packages/fx-recibu/lib"]
+solc = "0.8.26"
+via_ir = true
+optimizer = true
+optimizer_runs = 200
+evm_version = "cancun"
+bytecode_hash = "ipfs"
+remappings = [
+    "@openzeppelin/contracts/=packages/fx-recibu/lib/openzeppelin-contracts/contracts/",
+]
+
+# Claim vault is its own compiler input: solc 0.8.23, optimizer 99999, paris,
+# OpenZeppelin v4.9.2. upstream/ is outside src and is not compiled.
+# `test/fixtures` at the repo root is a symlink so vm.readFile("test/fixtures/...")
+# resolves when this profile runs from the monorepo root.
+[profile.claim-vault]
+src = "packages/claim-vault/src"
+test = "packages/claim-vault/test"
+script = "packages/claim-vault/script"
+out = "out/claim-vault"
+libs = ["packages/claim-vault/lib"]
+solc = "0.8.23"
+optimizer = true
+optimizer_runs = 99999
+evm_version = "paris"
+auto_detect_remappings = false
+remappings = [
+    "@openzeppelin/=packages/claim-vault/lib/openzeppelin-contracts/",
+    "forge-std/=packages/claim-vault/lib/forge-std/src/",
+]
+fs_permissions = [
+    { access = "read", path = "test/fixtures" },
+    { access = "read", path = "packages/claim-vault/test/fixtures" },
+]
+
+[profile.claim-vault.fuzz]
+runs = 1024

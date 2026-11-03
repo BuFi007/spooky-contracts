@@ -1,0 +1,128 @@
+--- upstream/PeanutV4.4.upstream.sol	2026-09-23 18:21:57
++++ src/V4/PeanutV4.4.sol	2026-09-23 18:49:45
+@@ -10,6 +10,17 @@
+ //          more at: https://peanut.to
+ // @version 0.4.4
+ // @author  Squirrel Labs
++//
++// BUFI FORK NOTICE (GPL-3.0-or-later, section 5a):
++//   Modified by BUFI (bu.finance) on 2026-09-23 from peanutprotocol/peanut-contracts
++//   commit 5e94c815b88fe4b043e7d83332ac82ddcb184d01 (file last changed upstream in
++//   9b435a81a62d01f046cd9db7fdbb738420e955a4). Two functional changes, nothing else:
++//   (1) MFA_AUTHORIZER is no longer a hardcoded constant. It is set in the constructor
++//       and rotated through a two-step handover (owner proposes, the new authorizer
++//       accepts), with the owner itself held behind OpenZeppelin Ownable2Step.
++//   (2) `reclaimableAfter` is enforced for EVERY deposit (upstream: address-bound only),
++//       so a bearer link cannot be pulled back before its window. 2026-09-23, founder.
++//   Every "BUFI:" comment marks a change.
+ //////////////////////////////////////////////////////////////////////////////////////
+ //⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+ //                         ⠀⠀⢀⣀⠀⠀⠀⠀⠀⠀
+@@ -40,8 +51,9 @@
+ import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
+ import {IL2ECO} from "../util/IL2ECO.sol";
+ import {IEIP3009} from "../util/IEIP3009.sol";
++import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol"; // BUFI
+ 
+-contract PeanutV4 is IERC721Receiver, IERC1155Receiver, ReentrancyGuard {
++contract PeanutV4 is IERC721Receiver, IERC1155Receiver, ReentrancyGuard, Ownable2Step /* BUFI */ {
+     using SafeERC20 for IERC20;
+ 
+     struct Deposit {
+@@ -73,7 +85,12 @@
+     bytes32 public constant EIP712DOMAIN_TYPEHASH =
+         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+ 
+-    address public constant MFA_AUTHORIZER = 0x3B14D43Bf521EF7FD9600533bEB73B6e9178DE7C;
++    // BUFI: was `address public constant MFA_AUTHORIZER = 0x3B14D43Bf521EF7FD9600533bEB73B6e9178DE7C;`
++    // Now a storage variable. The auto-generated getter keeps the name and signature
++    // `MFA_AUTHORIZER() returns (address)`; its ABI stateMutability changes pure -> view.
++    address public MFA_AUTHORIZER;
++    // BUFI: proposed next authorizer; becomes MFA_AUTHORIZER only when it calls acceptMFAAuthorizer().
++    address public pendingMFAAuthorizer;
+ 
+     struct EIP712Domain {
+         string name;
+@@ -99,14 +116,21 @@
+         uint256 indexed _index, uint8 indexed _contractType, uint256 _amount, address indexed _recipientAddress
+     );
+     event MessageEvent(string message);
++    // BUFI: MFA authorizer rotation events.
++    event MFAAuthorizerTransferStarted(address indexed previousAuthorizer, address indexed newAuthorizer);
++    event MFAAuthorizerTransferred(address indexed previousAuthorizer, address indexed newAuthorizer);
+ 
+     // constructor. Accepts ECO token address to prohibit ECO usage in normal
+     // ERC20 deposits.
+     // Initializes DOMAIN_SEPARATOR.
+     // Wishes you a nutty day.
+-    constructor(address _ecoAddress) {
++    // BUFI: constructor takes the initial MFA authorizer. The deployer becomes owner().
++    constructor(address _ecoAddress, address _mfaAuthorizer) {
+         emit MessageEvent("Hello World, have a nutty day!");
+         ecoAddress = _ecoAddress;
++        require(_mfaAuthorizer != address(0), "ZERO MFA AUTHORIZER"); // BUFI
++        MFA_AUTHORIZER = _mfaAuthorizer; // BUFI
++        emit MFAAuthorizerTransferred(address(0), _mfaAuthorizer); // BUFI
+         DOMAIN_SEPARATOR = hash(
+             EIP712Domain({name: "Peanut", version: "4.2", chainId: block.chainid, verifyingContract: address(this)})
+         );
+@@ -289,7 +313,7 @@
+      * @param _onBehalfOf who will be able to reclaim the link if the private key is lost
+      * @param _withMFA whether an external auhorisation is required for withdrawal
+      * @param _recipient if not 0x00.00, only _recipient will be able to withdraw
+-     * @param _reclaimableAfter if _recipient is set, the sender will be able to reclaim only after this timestamp
++     * @param _reclaimableAfter the sender will be able to reclaim only after this timestamp (BUFI: enforced for every deposit, bearer links included)
+      * @param _isGasless3009 if true, the deposit will be made via eip-3009, see makeDepositWithAuthorization funfction for more info
+      * @param _args3009 all the arguments for an EIP-3009 deposit, used if _isGasless3009 is true. Encoded with abi.encode, this is: address (from), bytes32 (_nonce), uint256 (_validAfter), uint256 (_validBefore), uint8 (_v), bytes32 (_r), bytes32 (_s). Unfortunately we have to encode it this way, because else we get a stack too deep error (EVM supports max 16 variables on the stack). 
+      * @return uint256 index of the deposit
+@@ -761,10 +785,14 @@
+         require(_deposit.claimed == false, "DEPOSIT ALREADY WITHDRAWN");
+         // check that the sender is the one who made the deposit
+         require(_deposit.senderAddress == _senderAddress, "NOT THE SENDER");
+-        // check timestamp for address-bound links
+-        if (_deposit.recipient != address(0)) {
+-            require(block.timestamp > _deposit.reclaimableAfter, "TOO EARLY TO RECLAIM");
+-        }
++        // BUFI: the reclaim window applies to EVERY deposit, not only address-bound
++        // ones. Upstream let the sender pull a bearer link back at any moment —
++        // including front-running a claim already in the mempool — so a "sent"
++        // payment stayed revocable until claimed. BUFI deposits bearer links with
++        // `reclaimableAfter = now + 30 days`: the payer cannot un-send inside the
++        // window, and gets the funds back after it if nobody claimed. A deposit
++        // with `reclaimableAfter = 0` behaves exactly as upstream.
++        require(block.timestamp > _deposit.reclaimableAfter, "TOO EARLY TO RECLAIM");
+ 
+         // emit the withdraw event
+         emit WithdrawEvent(_index, _deposit.contractType, _deposit.amount, _deposit.senderAddress);
+@@ -811,6 +839,31 @@
+         return _withdrawDepositSender(reclaim.depositIndex, signer);
+     }
+ 
++    //// BUFI: MFA authorizer rotation (two-step) ////
++
++    /**
++     * @notice BUFI: Step 1 of rotating the MFA authorizer. Only the owner.
++     * @dev Passing address(0) cancels a pending rotation. The current authorizer stays
++     *      in force until the proposed one calls acceptMFAAuthorizer().
++     */
++    function transferMFAAuthorizer(address _newAuthorizer) external onlyOwner {
++        pendingMFAAuthorizer = _newAuthorizer;
++        emit MFAAuthorizerTransferStarted(MFA_AUTHORIZER, _newAuthorizer);
++    }
++
++    /**
++     * @notice BUFI: Step 2. The proposed authorizer accepts, proving it controls the key.
++     *         From this block on, MFA signatures by the previous authorizer are rejected.
++     */
++    function acceptMFAAuthorizer() external {
++        address _newAuthorizer = pendingMFAAuthorizer;
++        require(_newAuthorizer != address(0) && msg.sender == _newAuthorizer, "NOT THE PENDING MFA AUTHORIZER");
++        address _previous = MFA_AUTHORIZER;
++        MFA_AUTHORIZER = _newAuthorizer;
++        delete pendingMFAAuthorizer;
++        emit MFAAuthorizerTransferred(_previous, _newAuthorizer);
++    }
++
+     //// Some utility functions ////
+ 
+     /**
