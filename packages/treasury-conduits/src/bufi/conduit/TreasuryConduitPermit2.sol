@@ -134,7 +134,7 @@ contract TreasuryConduitPermit2 is TreasuryConduit {
             revert AmountMismatch(intent.amountIn, permit.permitted.amount);
         }
         if (permit.deadline != intent.deadline) revert Permit2DeadlineMismatch();
-        if (block.timestamp >= intent.deadline) revert IntentExpired(intent.deadline, block.timestamp);
+        if (block.timestamp > intent.deadline) revert IntentExpired(intent.deadline, block.timestamp);
         if (!permit2Routes[intent.target][intent.allowanceTarget]) revert Permit2RouteNotRegistered();
         if (intent.documentCommitment == bytes32(0)) {
             if (intent.recipient != treasury) revert BeneficiaryMismatch(intent.recipient, treasury);

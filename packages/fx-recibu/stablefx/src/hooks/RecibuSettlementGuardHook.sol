@@ -111,7 +111,7 @@ contract RecibuSettlementGuardHook is AccessControl {
     );
     event RecibuFxSwapBlocked(bytes32 indexed invoiceId, bytes32 indexed workspaceId, bytes32 routeId, bytes32 reason);
     event WhitelistSet(address indexed requester, bool allowed);
-    event GuardParamsSet(uint256 maxOracleAge, uint16 maxDeviationBps, address priceFeed);
+    event GuardParamsSet(uint256 maxOracleAge, uint16 maxDeviationBps, address indexed priceFeed);
 
     error NotPoolManager();
     error LiveDeploymentDisabled(uint256 chainId);

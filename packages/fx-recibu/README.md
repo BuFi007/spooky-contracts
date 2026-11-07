@@ -10,9 +10,12 @@ The live mainnet sources are not what `fx-recibu` `main` contains. This package 
 
 v1 `MemoConduit.sol` and the CCTP parent are different contracts (about 6 KB and about 30 KB). `IERC3009.sol` also differs between the hub and the spoke. They live in separate trees:
 
-- `hub/` — InvoiceShelf and the contracts it compiles with, plus the escrow and router.
+- `hub/` — InvoiceShelf and the contracts it compiles with, plus `MultiTokenReceivableEscrow`, `RecibuMemoRouter`, `BUFIIdentityRegistry`, and `BUFIReputationRegistry`.
 - `spoke-cctp/` — SpokeMemoConduit, CCTP MemoConduit, MemoConduitCctpConfig.
 - `memo-v1/` — the non-CCTP MemoConduit.
+- `stablefx/` — `RecibuSettlementGuardHook`, its `fx-recibu@7330e6c` support tree, and `test/unit/GuardHook.t.sol`.
+- `cctp-forwarder/` — `CctpDepositForwarder` and `CctpDepositForwarderFactory` from `BuFi007/fx-recibu` branch `feat/cctp-deposit-forwarder` (PR #10), verified on Base Sepolia (`84532`).
+- `doc-registry/` — `DocumentReceivableRegistry` from `BuFi007/fx-recibu` branch `feat/document-receivable-registry` (PR #9).
 
 `lib/openzeppelin-contracts/` is shared by the three trees. It is the 0.8.26-era snapshot from the verifications, and it is not the treasury snapshot.
 
@@ -20,9 +23,9 @@ The hub admin Safe on Arc mainnet is `0x47Dc7D18A6E3a79F696714E7D47456a49B430D09
 
 ## Not imported
 
-Testnet-only contracts were left out: BUFIOracle, InvoiceMemoRouter, InvoiceSettlement, the old ReceivableEscrow, BUAttestation, and KybWorkspacePolicy. CRE extractors removed in fx-recibu PR #12 are not here. Identity and reputation registry implementations are out of scope; `InvoiceShelf` still imports `IBUFIIdentityRegistry` and `IBUFIReputationRegistry`.
+Testnet-only contracts were left out: BUFIOracle, InvoiceMemoRouter, InvoiceSettlement, the old ReceivableEscrow, BUAttestation, and KybWorkspacePolicy. CRE extractors removed in fx-recibu PR #12 are not here.
 
-`stablefx/` holds `RecibuSettlementGuardHook`, `IV4Types`, and the hook's `IInvoiceShelf` from fx-recibu `main` `7330e6c`. The hook is in scope and undeployed. Foundry profile `fx-stablefx` compiles it with solc 0.8.26, cancun, viaIR, optimizer 200, and with Solar. `GuardHook.t.sol` is in `stablefx/test-pending/` and is not compiled: it imports identity and reputation implementations and `StrictAuthorityInvoiceVerifier`, which are not in this tree.
+`stablefx/` holds `RecibuSettlementGuardHook`, `IV4Types`, `IInvoiceShelf`, and the `fx-recibu` `main` `7330e6c` support contracts and test (`test/unit/GuardHook.t.sol`). The hook is in scope and undeployed. Foundry profile `fx-stablefx` compiles and tests it with solc 0.8.26, cancun, viaIR, optimizer 200, and with Solar.
 
 Comments inside `InvoiceShelf` still name Fantasmita, InvoiceMemoRouter, InvoiceSettlement, and BUFIOracle. Those comments are part of the deployed source and were not edited.
 
@@ -34,10 +37,14 @@ Comments inside `InvoiceShelf` still name Fantasmita, InvoiceMemoRouter, Invoice
 | WorkspaceTierRegistry | Arc 5042 | [`0xfe06281b464d53f00cceca504114263c689e56fe`](https://explorer.arc.io/address/0xfe06281b464d53f00cceca504114263c689e56fe) | immutables |
 | MultiTokenReceivableEscrow | Arc 5042 | [`0xbb4b6bbdaeb3136571d33742385a1ae59cee57ab`](https://explorer.arc.io/address/0xbb4b6bbdaeb3136571d33742385a1ae59cee57ab) | exact |
 | RecibuMemoRouter | Arc 5042 | [`0x208fbdf4268c87c475189d9ecd7d59b4766e75cb`](https://explorer.arc.io/address/0x208fbdf4268c87c475189d9ecd7d59b4766e75cb) | immutables |
+| BUFIIdentityRegistry | Arc 5042 | [`0xe3d6de22135bbd463c0a97a5196782cbcc3f3322`](https://explorer.arc.io/address/0xe3d6de22135bbd463c0a97a5196782cbcc3f3322) | exact |
+| BUFIReputationRegistry | Arc 5042 | [`0x30015db351747e39102da3f65f51ce0207052415`](https://explorer.arc.io/address/0x30015db351747e39102da3f65f51ce0207052415) | immutables |
 | SpokeMemoConduit | Avalanche 43114 | [`0x7b5b1425bb621b014b7257a0d0caf88c453e33c8`](https://snowtrace.io/address/0x7b5b1425bb621b014b7257a0d0caf88c453e33c8) | immutables |
 | MemoConduit v1 | Avalanche 43114 | [`0x536268d0a6c32a7161ba146f5673dfcf13f1ffe2`](https://snowtrace.io/address/0x536268d0a6c32a7161ba146f5673dfcf13f1ffe2) | immutables |
 | MemoConduit v1 | Arc 5042 | [`0x516340a244132c62bedae5f886fd35845af16ba2`](https://explorer.arc.io/address/0x516340a244132c62bedae5f886fd35845af16ba2) | immutables |
+| CctpDepositForwarder | Base Sepolia 84532 | `0x23CCCf9e090937DF0F97f166DBF7302A94A653Ea` | exact (Sourcify) |
+| CctpDepositForwarderFactory | Base Sepolia 84532 | `0x4035b61123367428ECFd8D4f6FD2bd74e00038ec` | exact (Sourcify) |
 
 `BINV`, `BIFTranche`, `WorkspaceOperatingReserve`, `Params`, `ReceivableCommitment`, and `FactoringEvidenceV1` are in the hub compile because `InvoiceShelf` imports them. The bytecode check covers the contracts that were found as their own mainnet deployments.
 
-Foundry profiles, from the repository root: `fx-hub`, `fx-spoke`, `fx-memo-v1`.
+Foundry profiles, from the repository root: `fx-hub`, `fx-spoke`, `fx-memo-v1`, `fx-stablefx`, `fx-cctp-forwarder`, `fx-doc-registry`.

@@ -217,6 +217,7 @@ contract MemoConduit is ReentrancyGuard {
     error BridgeDependencyMismatch();
     error BridgeReferenceMissing();
     error BridgeAlreadyDispatched(address from, bytes32 memoId);
+    error MemoAlreadyPaid(address from, bytes32 memoId);
     error BridgeRequiresSmartAccount();
     error BridgeDebitMismatch();
     error BridgeBurnMismatch();
@@ -283,19 +284,21 @@ contract MemoConduit is ReentrancyGuard {
         if (amount == 0) revert ZeroAmount();
         if (recipient == address(0)) revert ZeroAddress();
         if (!supportedToken[token]) revert TokenNotSupported(token);
+        if (memoPaymentCommitment[from][memoId] != bytes32(0)) revert MemoAlreadyPaid(from, memoId);
         if (bridgePaymentCommitment[from][memoId] != bytes32(0)) revert BridgeAlreadyDispatched(from, memoId);
         if (!_isAllowlisted(from, recipient)) revert RecipientNotAllowlisted(from, recipient);
 
         bytes32 nonce = memoPaymentNonceOf(token, from, recipient, amount, validAfter, validBefore, memoId, memoData);
+        memoPaymentCommitment[from][memoId] = nonce;
         uint256 balanceBefore = IERC20(token).balanceOf(address(this));
 
         IERC3009(token).receiveWithAuthorization(from, address(this), amount, validAfter, validBefore, nonce, signature);
         IERC20(token).safeTransfer(recipient, amount);
 
         uint256 balanceAfter = IERC20(token).balanceOf(address(this));
-        if (balanceAfter != balanceBefore) revert BalanceChanged(balanceBefore, balanceAfter);
-
-        memoPaymentCommitment[from][memoId] = nonce;
+        if (balanceAfter < balanceBefore || balanceAfter > balanceBefore) {
+            revert BalanceChanged(balanceBefore, balanceAfter);
+        }
 
         emit MemoConduitPayment(memoId, from, recipient, token, amount, memoData);
     }

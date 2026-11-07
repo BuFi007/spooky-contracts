@@ -40,6 +40,7 @@ contract MultiTokenReceivableEscrow is AccessControl, ReentrancyGuard {
     error InsufficientEscrow(uint256 invoiceId, uint256 have, uint256 want);
     error RefundLocked(uint256 invoiceId, uint64 unlockAt);
     error BalanceMismatch();
+    error InvalidDepositor(address caller, address from);
 
     constructor(address admin) {
         if (admin == address(0)) revert ZeroAddress();
@@ -58,17 +59,19 @@ contract MultiTokenReceivableEscrow is AccessControl, ReentrancyGuard {
         onlyRole(ROUTER_ROLE)
         nonReentrant
     {
+        if (from != msg.sender) revert InvalidDepositor(msg.sender, from);
         if (amount == 0) revert ZeroAmount();
         if (!supportedToken[token]) revert TokenNotSupported(token);
         address bound = tokenOf[invoiceId];
         if (bound == address(0)) tokenOf[invoiceId] = token;
         else if (bound != token) revert InvoiceTokenMismatch(invoiceId, bound, token);
         uint256 before = IERC20(token).balanceOf(address(this));
-        IERC20(token).safeTransferFrom(from, address(this), amount);
-        if (IERC20(token).balanceOf(address(this)) != before + amount) revert BalanceMismatch(); // no fee-on-transfer
+        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+        uint256 afterBal = IERC20(token).balanceOf(address(this));
+        if (afterBal < before + amount || afterBal > before + amount) revert BalanceMismatch();
         escrowedOf[invoiceId] += amount;
         totalEscrowedOf[token] += amount;
-        emit Deposited(invoiceId, token, from, amount);
+        emit Deposited(invoiceId, token, msg.sender, amount);
     }
 
     function setRefundLock(uint256 invoiceId, uint64 unlockAt) external onlyRole(ROUTER_ROLE) {

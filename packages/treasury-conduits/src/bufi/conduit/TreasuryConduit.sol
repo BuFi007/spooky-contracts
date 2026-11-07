@@ -141,14 +141,21 @@ contract TreasuryConduit is Ownable2Step, ReentrancyGuard {
     error TargetCallFailed(bytes reason);
     error BelowFloor(uint256 gained, uint256 minOut);
     error NothingToSweep();
+    error ZeroAddress();
+    error RenounceDisabled();
 
     constructor(address initialOwner) Ownable(initialOwner) {}
+
+    function renounceOwnership() public view override onlyOwner {
+        revert RenounceDisabled();
+    }
 
     // ── governance
     // ──────────────────────────────────────────────────────────
 
     /// @notice Register or retire a protocol target. Owner is the BUFI ops multisig.
     function setTarget(address target, bool allowed) external onlyOwner {
+        if (target == address(0)) revert ZeroAddress();
         targets[target] = allowed;
         emit TargetSet(target, allowed);
     }
@@ -217,7 +224,9 @@ contract TreasuryConduit is Ownable2Step, ReentrancyGuard {
         if (address(tokenOut) != address(tokenIn)) _sweep(tokenOut, auth.from);
 
         // 4. The reviewed floor, measured where it matters: on the treasury.
-        uint256 gained = tokenOut.balanceOf(auth.from) - before;
+        uint256 afterBal = tokenOut.balanceOf(auth.from);
+        if (afterBal < before) revert BelowFloor(0, intent.minOut);
+        uint256 gained = afterBal - before;
         if (gained < intent.minOut) revert BelowFloor(gained, intent.minOut);
 
         emit Executed(
@@ -238,7 +247,8 @@ contract TreasuryConduit is Ownable2Step, ReentrancyGuard {
     /// mistake (a direct transfer) can go back to its sender without governance.
     /// The owner names the recipient; it cannot name itself as the beneficiary
     /// of someone else's mistake beyond what the event trail shows.
-    function rescue(address token, address to) external onlyOwner {
+    function rescue(address token, address to) external onlyOwner nonReentrant {
+        if (token == address(0) || to == address(0)) revert ZeroAddress();
         uint256 amount = IERC20(token).balanceOf(address(this));
         if (amount == 0) revert NothingToSweep();
         IERC20(token).safeTransfer(to, amount);

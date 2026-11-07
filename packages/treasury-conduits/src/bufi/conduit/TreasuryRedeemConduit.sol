@@ -47,10 +47,17 @@ contract TreasuryRedeemConduit is Ownable2Step, ReentrancyGuard, EIP712 {
     error NonceUsed(uint256 nonce);
     error InvalidQuorumSignature();
     error BelowFloor(uint256 gained, uint256 minAssets);
+    error ZeroAddress();
+    error RenounceDisabled();
 
     constructor(address initialOwner) Ownable(initialOwner) EIP712("TreasuryRedeemConduit", "1") {}
 
+    function renounceOwnership() public view override onlyOwner {
+        revert RenounceDisabled();
+    }
+
     function setVault(address vault, bool allowed) external onlyOwner {
+        if (vault == address(0)) revert ZeroAddress();
         vaults[vault] = allowed;
         emit VaultSet(vault, allowed);
     }

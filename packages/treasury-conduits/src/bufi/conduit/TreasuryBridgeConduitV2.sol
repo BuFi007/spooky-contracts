@@ -245,9 +245,14 @@ contract TreasuryBridgeConduitV2 is Ownable2Step, ReentrancyGuard {
     error InvalidPlatformFee();
     error ZeroBridgeFloor();
     error PersonalCallerMismatch();
+    error RenounceDisabled();
     event PlatformFeePaid(address indexed payer, address indexed token, address indexed recipient, uint256 amount);
 
     constructor(address initialOwner) Ownable(initialOwner) {}
+
+    function renounceOwnership() public view override onlyOwner {
+        revert RenounceDisabled();
+    }
 
     // ── governance (owner = the chain's Safe)
     // ───────────────────────────────
@@ -412,7 +417,8 @@ contract TreasuryBridgeConduitV2 is Ownable2Step, ReentrancyGuard {
 
     /// @notice Return any token this contract holds. Never needed when `execute`
     /// runs to completion; exists for direct transfers sent here by mistake.
-    function rescue(address token, address to) external onlyOwner {
+    function rescue(address token, address to) external onlyOwner nonReentrant {
+        if (token == address(0) || to == address(0)) revert ZeroAddress();
         uint256 amount = IERC20(token).balanceOf(address(this));
         if (amount == 0) revert NothingToSweep();
         IERC20(token).safeTransfer(to, amount);

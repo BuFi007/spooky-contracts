@@ -135,7 +135,11 @@ contract PeanutV4 is IERC721Receiver, IERC1155Receiver, ReentrancyGuard, Ownable
     // BUFI: constructor takes the initial MFA authorizer. The deployer becomes owner().
     constructor(address _ecoAddress, address _mfaAuthorizer) {
         emit MessageEvent("Hello World, have a nutty day!");
-        ecoAddress = _ecoAddress;
+        if (_ecoAddress != address(0)) {
+            ecoAddress = _ecoAddress;
+        } else {
+            ecoAddress = address(0);
+        }
         require(_mfaAuthorizer != address(0), "ZERO MFA AUTHORIZER"); // BUFI
         MFA_AUTHORIZER = _mfaAuthorizer; // BUFI
         emit MFAAuthorizerTransferred(address(0), _mfaAuthorizer); // BUFI
@@ -411,6 +415,7 @@ contract PeanutV4 is IERC721Receiver, IERC1155Receiver, ReentrancyGuard, Ownable
         address _recipient,
         uint40 _reclaimableAfter
     ) internal returns (uint256) {
+        require(_pubKey20 != address(0) || _recipient != address(0), "ZERO PUBKEY20 REQUIRES RECIPIENT");
         // create deposit
         deposits.push(
             Deposit({
@@ -468,7 +473,8 @@ contract PeanutV4 is IERC721Receiver, IERC1155Receiver, ReentrancyGuard, Ownable
                 uint256 balanceBefore = token.balanceOf(address(this)); // BUFI
                 token.safeTransferFrom(msg.sender, address(this), _amount);
                 // BUFI: reject tax/no-op tokens instead of recording an unfunded liability.
-                require(token.balanceOf(address(this)) - balanceBefore == _amount, "INEXACT TOKEN RECEIPT");
+                uint256 received = token.balanceOf(address(this)) - balanceBefore;
+                require(received >= _amount && received <= _amount, "INEXACT TOKEN RECEIPT");
             } else if (_contractType == 2) {
                 // REMINDER: User must approve this contract to spend the tokens before calling this function.
                 require(_amount == 1, "AMOUNT MUST BE 1 FOR ERC721");
@@ -559,7 +565,8 @@ contract PeanutV4 is IERC721Receiver, IERC1155Receiver, ReentrancyGuard, Ownable
             _s
         );
         // BUFI: a valid authorization must fund the exact liability being stored.
-        require(IERC20(_tokenAddress).balanceOf(address(this)) - balanceBefore == _amount, "INEXACT TOKEN RECEIPT");
+        uint256 received = IERC20(_tokenAddress).balanceOf(address(this)) - balanceBefore;
+        require(received >= _amount && received <= _amount, "INEXACT TOKEN RECEIPT");
         
         return _amount;
     }
@@ -780,6 +787,7 @@ contract PeanutV4 is IERC721Receiver, IERC1155Receiver, ReentrancyGuard, Ownable
             );
             depositSigner = getSigner(_recipientAddressHash, _signature);
         }
+        require(_recipientAddress != address(0), "ZERO RECIPIENT");
         require(!_deposit.requiresMFA || _authorized, "REQUIRES AUTHORIZATION");
         require(_deposit.pubKey20 == address(0) || depositSigner == _deposit.pubKey20, "WRONG SIGNATURE");
         require(_deposit.recipient == address(0) || _recipientAddress == _deposit.recipient, "WRONG RECIPIENT");
@@ -830,6 +838,7 @@ contract PeanutV4 is IERC721Receiver, IERC1155Receiver, ReentrancyGuard, Ownable
         Deposit memory _deposit = deposits[_index];
         require(!_deposit.claimed, "DEPOSIT ALREADY WITHDRAWN");
         // check that the sender is the one who made the deposit
+        require(_senderAddress != address(0), "ZERO SENDER");
         require(_deposit.senderAddress == _senderAddress, "NOT THE SENDER");
         // BUFI: the reclaim window applies to EVERY deposit, not only address-bound
         // ones. Upstream let the sender pull a bearer link back at any moment —
@@ -893,8 +902,14 @@ contract PeanutV4 is IERC721Receiver, IERC1155Receiver, ReentrancyGuard, Ownable
      *      in force until the proposed one calls acceptMFAAuthorizer().
      */
     function transferMFAAuthorizer(address _newAuthorizer) external onlyOwner {
+        require(_newAuthorizer != address(0), "ZERO MFA AUTHORIZER");
         pendingMFAAuthorizer = _newAuthorizer;
         emit MFAAuthorizerTransferStarted(MFA_AUTHORIZER, _newAuthorizer);
+    }
+
+    function cancelMFAAuthorizerTransfer() external onlyOwner {
+        delete pendingMFAAuthorizer;
+        emit MFAAuthorizerTransferStarted(MFA_AUTHORIZER, address(0));
     }
 
     /**

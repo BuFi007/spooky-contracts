@@ -112,6 +112,8 @@ contract InvoiceShelf is AccessControl, ReentrancyGuard {
 
     uint256 public nextInvoiceId = 1;
     mapping(uint256 => Invoice) public invoices;
+    mapping(uint256 => uint128) public installmentProgress;
+    mapping(uint256 => uint64) public pendingBridgeUntil;
 
     /// @dev Permanent anti-double-financing indices. Terminal invoice states and bINV
     ///      burns MUST NOT clear these values.
@@ -162,7 +164,15 @@ contract InvoiceShelf is AccessControl, ReentrancyGuard {
         bytes32 indexed currentSnapshotHash,
         bytes32 privateTermsHash
     );
+    event InstallmentPaymentApplied(
+        uint256 indexed invoiceId,
+        uint8 indexed index,
+        uint256 amount,
+        uint256 cumulativeProgress,
+        uint256 installmentAmount
+    );
     event InstallmentPaid(uint256 indexed invoiceId, uint8 index, uint256 amount, bool onTime);
+    event CrossChainRepaymentNotified(uint256 indexed invoiceId, bytes32 indexed bridgeNonce, uint64 pendingUntil);
     event InvoiceSettled(uint256 indexed invoiceId, uint256 holdbackReleased);
     event InvoiceDefaulted(uint256 indexed invoiceId, uint256 lossAfterHoldback);
     event LossAllocated(uint8 indexed tranche, uint256 amount);
@@ -239,6 +249,12 @@ contract InvoiceShelf is AccessControl, ReentrancyGuard {
     error MaturityBeforeDue(uint64 maturity, uint256 dueWithGrace);
     error UnitsExceedOpen(uint256 units, uint256 open);
     error BufferTooLarge(uint32 buffer);
+    error Overpayment(uint256 amount, uint256 remainingFace);
+    error MidnightDirectPaymentDisabled();
+    error InstallmentAccountingMismatch(
+        uint256 invoiceId, uint8 paidInstallments, uint8 expectedInstallments, uint256 progress
+    );
+    error CrossChainRepaymentInFlight(uint256 invoiceId, uint64 pendingUntil);
 
     constructor(
         IERC20 usdc,
@@ -434,6 +450,7 @@ contract InvoiceShelf is AccessControl, ReentrancyGuard {
 
     /// @notice apply a debtor payment (servicer relays directly; pays from own balance).
     function applyPayment(uint256 invoiceId, uint256 amount) external onlyRole(SERVICER_ROLE) nonReentrant {
+        if (MIDNIGHT_MODE) revert MidnightDirectPaymentDisabled();
         _applyPayment(invoiceId, amount, msg.sender);
     }
 
@@ -444,7 +461,20 @@ contract InvoiceShelf is AccessControl, ReentrancyGuard {
         onlyRole(SETTLEMENT_ROLE)
         nonReentrant
     {
+        if (MIDNIGHT_MODE && (address(escrow) == address(0) || payer != address(escrow))) {
+            revert MidnightDirectPaymentDisabled();
+        }
         _applyPayment(invoiceId, amount, payer);
+    }
+
+    /// @notice Record that a spoke CCTP repayment burn was observed for `invoiceId`,
+    ///         holding default eligibility open for `crossChainBuffer`.
+    function notifyCrossChainRepayment(uint256 invoiceId, bytes32 bridgeNonce) external onlyRole(SERVICER_ROLE) {
+        if (invoices[invoiceId].status != Status.Funded) revert BadStatus(invoiceId);
+        if (bridgeNonce == bytes32(0)) revert BadAdvance();
+        uint64 pendingUntil = uint64(block.timestamp + crossChainBuffer);
+        pendingBridgeUntil[invoiceId] = pendingUntil;
+        emit CrossChainRepaymentNotified(invoiceId, bridgeNonce, pendingUntil);
     }
 
     function _applyPayment(uint256 invoiceId, uint256 amount, address payer) internal {
@@ -454,20 +484,16 @@ contract InvoiceShelf is AccessControl, ReentrancyGuard {
         // Midnight path: record-only (cash goes escrow -> Midnight repay, never the shelf)
         if (!MIDNIGHT_MODE) USDC.safeTransferFrom(payer, address(this), amount);
 
-        uint8 idx = inv.paidInstallments;
-        uint256 due = installmentDue(invoiceId, idx);
-        bool onTime = block.timestamp <= lateAfter(invoiceId, due);
-
         // split: tranche recovery first (outstanding), then the seller's holdback slice.
         // anything beyond face is rejected — the debtor owes face, no more.
+        uint256 remainingFace = uint256(inv.outstanding) + uint256(inv.holdback - inv.holdbackCollected);
+        if (amount > remainingFace) revert Overpayment(amount, remainingFace);
         uint128 toOutstanding = amount >= inv.outstanding ? inv.outstanding : uint128(amount);
         uint128 remainder = uint128(amount) - toOutstanding;
-        uint128 holdbackRoom = inv.holdback - inv.holdbackCollected;
-        if (remainder > holdbackRoom) revert ZeroAmount(); // overpayment beyond face
 
+        delete pendingBridgeUntil[invoiceId];
         inv.outstanding -= toOutstanding;
         inv.holdbackCollected += remainder;
-        inv.paidInstallments = idx + 1;
         if (toOutstanding > 0) {
             _reduceExposure(inv, toOutstanding);
             if (!MIDNIGHT_MODE) {
@@ -477,25 +503,68 @@ contract InvoiceShelf is AccessControl, ReentrancyGuard {
         }
         if (remainder > 0 && !MIDNIGHT_MODE) totalHoldbackHeld += remainder; // seller's cash, held as liability
 
-        if (onTime) {
-            // the ONLY input that raises L(w) — realized repayment (SPEC §4.9)
-            REPUTATION.recordOnTimeInstallment(inv.sellerAgentId);
-            REPUTATION.recordPairSettlement(inv.sellerAgentId, inv.debtorAgentId);
-        }
-        emit InstallmentPaid(invoiceId, idx, uint256(toOutstanding) + remainder, onTime);
+        _creditInstallments(invoiceId, inv, amount);
 
         if (inv.outstanding == 0 && inv.holdbackCollected == inv.holdback) {
+            if (inv.paidInstallments != inv.nInstallments || installmentProgress[invoiceId] != 0) {
+                revert InstallmentAccountingMismatch(
+                    invoiceId, inv.paidInstallments, inv.nInstallments, installmentProgress[invoiceId]
+                );
+            }
             _settle(invoiceId, inv);
+        }
+    }
+
+    function _installmentAmount(Invoice storage inv, uint8 index) internal view returns (uint256) {
+        uint256 base = uint256(inv.face) / inv.nInstallments;
+        if (index + 1 < inv.nInstallments) return base;
+        return base + (uint256(inv.face) % inv.nInstallments);
+    }
+
+    function _creditInstallments(uint256 invoiceId, Invoice storage inv, uint256 amount) internal {
+        uint256 remaining = amount;
+        while (remaining > 0) {
+            uint8 index = inv.paidInstallments;
+            if (index >= inv.nInstallments) {
+                revert InstallmentAccountingMismatch(
+                    invoiceId, inv.paidInstallments, inv.nInstallments, installmentProgress[invoiceId]
+                );
+            }
+
+            uint256 fullAmount = _installmentAmount(inv, index);
+            uint256 progress = installmentProgress[invoiceId];
+            uint256 openAmount = fullAmount - progress;
+            uint256 applied = remaining < openAmount ? remaining : openAmount;
+            uint256 cumulative = progress + applied;
+
+            installmentProgress[invoiceId] = uint128(cumulative);
+            emit InstallmentPaymentApplied(invoiceId, index, applied, cumulative, fullAmount);
+            remaining -= applied;
+
+            if (cumulative == fullAmount) {
+                installmentProgress[invoiceId] = 0;
+                inv.paidInstallments = index + 1;
+                uint256 due = installmentDue(invoiceId, index);
+                bool onTime = block.timestamp <= lateAfter(invoiceId, due);
+                if (onTime) {
+                    REPUTATION.recordOnTimeInstallment(inv.sellerAgentId);
+                    REPUTATION.recordPairSettlement(inv.sellerAgentId, inv.debtorAgentId);
+                }
+                emit InstallmentPaid(invoiceId, index, fullAmount, onTime);
+            }
         }
     }
 
     /// @notice flip a missed invoice (earliest open installment past grace) into default
     ///         and run the M3 waterfall slice: holdback first, then C→B→A.
-    function markDefaulted(uint256 invoiceId) external onlyRole(SERVICER_ROLE) {
+    function markDefaulted(uint256 invoiceId) external onlyRole(SERVICER_ROLE) nonReentrant {
         Invoice storage inv = invoices[invoiceId];
         if (inv.status != Status.Funded) revert BadStatus(invoiceId);
         uint256 due = installmentDue(invoiceId, inv.paidInstallments);
         if (block.timestamp <= lateAfter(invoiceId, due)) revert NotPastGrace();
+        if (block.timestamp <= pendingBridgeUntil[invoiceId]) {
+            revert CrossChainRepaymentInFlight(invoiceId, pendingBridgeUntil[invoiceId]);
+        }
 
         // A debtor payment already deposited into escrow (via InvoiceMemoRouter.pay) has
         // NOT advanced the shelf — settlement applies it out-of-band (paidInstallments==0 is
@@ -618,6 +687,7 @@ contract InvoiceShelf is AccessControl, ReentrancyGuard {
         bytes32 memoId
     ) external onlyRole(ADVANCE_ROLE) {
         if (messageHash == bytes32(0)) revert BadAdvance();
+        delete pendingBridgeUntil[invoiceId];
         Advance storage a = _openAdvance(invoiceId, units);
         a.repaidUnits += units;
         emit RepaymentSettled(invoiceId, a.marketId, messageHash, sourceDomain, amount, units, memoId);

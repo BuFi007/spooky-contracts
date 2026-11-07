@@ -62,7 +62,33 @@ contract SpokeMemoConduit is MemoConduit {
         if (destinationDomain != HUB_CCTP_DOMAIN) revert NotSpokeToHub(block.chainid, destinationChainId);
     }
 
+    bytes32 public constant BRIDGE_CORRELATION_NONCE_TYPEHASH = keccak256(
+        "SpokeMemoConduitBridgeNonce(uint256 sourceChainId,address conduit,bytes32 advanceId,bytes32 marketId,bytes32 memoId,uint32 destinationDomain,bytes32 authNonce)"
+    );
+
+    /// @notice Domain-separated bridge correlation identifier emitted in {RepaymentInitiated},
+    ///         distinct from the raw ERC-3009 `authNonce`.
+    function computeBridgeNonce(BridgePayment calldata payment, bytes32 authNonce, uint32 destinationDomain)
+        public
+        view
+        returns (bytes32)
+    {
+        return keccak256(
+            abi.encode(
+                BRIDGE_CORRELATION_NONCE_TYPEHASH,
+                block.chainid,
+                address(this),
+                payment.paymentId,
+                payment.termsHash,
+                payment.memoId,
+                destinationDomain,
+                authNonce
+            )
+        );
+    }
+
     function _afterCctpBurn(BridgePayment calldata payment, bytes32 nonce, uint32 destinationDomain) internal override {
+        bytes32 bridgeNonce = computeBridgeNonce(payment, nonce, destinationDomain);
         emit RepaymentInitiated(
             payment.paymentId,
             payment.termsHash,
@@ -71,7 +97,7 @@ contract SpokeMemoConduit is MemoConduit {
             payment.recipient,
             payment.amount,
             destinationDomain,
-            nonce,
+            bridgeNonce,
             CCTP_MESSAGE_TRANSMITTER
         );
     }

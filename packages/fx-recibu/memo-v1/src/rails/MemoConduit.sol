@@ -40,6 +40,7 @@ contract MemoConduit is ReentrancyGuard {
 
     IAddressBook public immutable ADDRESS_BOOK;
     mapping(address => bool) public supportedToken;
+    mapping(address => mapping(bytes32 => bytes32)) public memoPaymentCommitment;
 
     /// @notice One per payment. `memoId` is indexed so a payment is findable by document
     ///         without a transaction hash; `memo` is the exact bytes the quorum signed.
@@ -56,6 +57,7 @@ contract MemoConduit is ReentrancyGuard {
     error ZeroAmount();
     error TokenNotSupported(address token);
     error RecipientNotAllowlisted(address from, address recipient);
+    error MemoAlreadyPaid(address from, bytes32 memoId);
     error BalanceChanged(uint256 before, uint256 afterPayment);
 
     constructor(IAddressBook addressBook_, address[] memory tokens) {
@@ -109,16 +111,20 @@ contract MemoConduit is ReentrancyGuard {
         if (amount == 0) revert ZeroAmount();
         if (recipient == address(0)) revert ZeroAddress();
         if (!supportedToken[token]) revert TokenNotSupported(token);
+        if (memoPaymentCommitment[from][memoId] != bytes32(0)) revert MemoAlreadyPaid(from, memoId);
         if (!_isAllowlisted(from, recipient)) revert RecipientNotAllowlisted(from, recipient);
 
         bytes32 nonce = memoPaymentNonceOf(token, from, recipient, amount, validAfter, validBefore, memoId, memoData);
+        memoPaymentCommitment[from][memoId] = nonce;
         uint256 balanceBefore = IERC20(token).balanceOf(address(this));
 
         IERC3009(token).receiveWithAuthorization(from, address(this), amount, validAfter, validBefore, nonce, signature);
         IERC20(token).safeTransfer(recipient, amount);
 
         uint256 balanceAfter = IERC20(token).balanceOf(address(this));
-        if (balanceAfter != balanceBefore) revert BalanceChanged(balanceBefore, balanceAfter);
+        if (balanceAfter < balanceBefore || balanceAfter > balanceBefore) {
+            revert BalanceChanged(balanceBefore, balanceAfter);
+        }
 
         emit MemoConduitPayment(memoId, from, recipient, token, amount, memoData);
     }

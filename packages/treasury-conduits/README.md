@@ -10,7 +10,9 @@ These files are the Sourcify-verified compiler inputs for the live deployments. 
 
 `lib/openzeppelin-contracts/` is the OpenZeppelin snapshot from those verifications. It is a different snapshot from `packages/fx-recibu/lib` and must not be remapped onto it. Unused remapping prefixes from the original foundry project (solady, forge-std, account-abstraction, erc6900, circle) are not vendored. They are replayed as strings by `script/verify_bytecode.py` because the metadata CBOR records them.
 
-Not imported, and not in the audit set: gateway-guard, GatewayTreasury, the v0.7 session and recipient hooks, TreasuryEarnVault, and any SwapDeposit adapter or planned v3. None of those appeared in the mainnet verifications recovered for the addresses below.
+Not imported, and not in the audit set: gateway-guard (except `GatewayIntentPolicy` in `packages/agent-policy`), GatewayTreasury, the v0.7 session and recipient hooks, and TreasuryEarnVault.
+
+The planned v3 treasury conduits (`TreasuryConduit` v3, `TreasuryRedeemConduit` v3, and `TreasurySwapAndDeposit` from `BuFi007/BUFI-6900` branch `cursor/remove-dead-solidity-9111`) and the Permit2 bridge conduit (`TreasuryBridgeConduitPermit2` and its v1 `TreasuryBridgeConduit` parent from `BuFi007/BUFI-6900` branch `codex/permit2-treasury-conduit`) live under `v3/` and compile with Foundry profile `treasury-v3`, keeping the Sourcify-verified v2 mainnet sources in `src/` unchanged.
 
 ## Deployed addresses
 

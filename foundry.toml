@@ -24,6 +24,38 @@ remappings = [
     "@openzeppelin/contracts/=packages/treasury-conduits/lib/openzeppelin-contracts/contracts/",
 ]
 
+[profile.treasury-v3]
+src = "packages/treasury-conduits/v3/src"
+test = "packages/treasury-conduits/v3/test"
+out = "out/treasury-v3"
+libs = ["packages/treasury-conduits/lib", "packages/claim-vault/lib"]
+solc = "0.8.24"
+via_ir = true
+optimizer = true
+optimizer_runs = 200
+evm_version = "paris"
+bytecode_hash = "ipfs"
+remappings = [
+    "@openzeppelin/contracts/=packages/treasury-conduits/lib/openzeppelin-contracts/contracts/",
+    "forge-std/=packages/claim-vault/lib/forge-std/src/",
+]
+
+[profile.agent-policy]
+src = "packages/agent-policy/src"
+test = "packages/agent-policy/test"
+out = "out/agent-policy"
+libs = ["packages/agent-policy/lib", "packages/claim-vault/lib"]
+solc = "0.8.24"
+via_ir = true
+optimizer = true
+optimizer_runs = 200
+evm_version = "paris"
+bytecode_hash = "ipfs"
+remappings = [
+    "@openzeppelin/contracts/=packages/agent-policy/lib/openzeppelin-contracts/contracts/",
+    "forge-std/=packages/claim-vault/lib/forge-std/src/",
+]
+
 [profile.fx-hub]
 src = "packages/fx-recibu/hub/src"
 test = "packages/fx-recibu/hub/test"
@@ -73,7 +105,7 @@ remappings = [
 src = "packages/fx-recibu/stablefx/src"
 test = "packages/fx-recibu/stablefx/test"
 out = "out/fx-stablefx"
-libs = ["packages/fx-recibu/lib"]
+libs = ["packages/fx-recibu/lib", "packages/claim-vault/lib"]
 solc = "0.8.26"
 via_ir = true
 optimizer = true
@@ -82,7 +114,49 @@ evm_version = "cancun"
 bytecode_hash = "ipfs"
 remappings = [
     "@openzeppelin/contracts/=packages/fx-recibu/lib/openzeppelin-contracts/contracts/",
+    "forge-std/=packages/claim-vault/lib/forge-std/src/",
 ]
+
+[profile.fx-cctp-forwarder]
+src = "packages/fx-recibu/cctp-forwarder/src"
+test = "packages/fx-recibu/cctp-forwarder/test"
+script = "packages/fx-recibu/cctp-forwarder/script"
+out = "out/fx-cctp-forwarder"
+libs = ["packages/fx-recibu/lib", "packages/claim-vault/lib"]
+solc = "0.8.26"
+via_ir = true
+optimizer = true
+optimizer_runs = 200
+evm_version = "cancun"
+bytecode_hash = "ipfs"
+remappings = [
+    "@openzeppelin/contracts/=packages/fx-recibu/lib/openzeppelin-contracts/contracts/",
+    "forge-std/=packages/claim-vault/lib/forge-std/src/",
+]
+
+[profile.fx-cctp-forwarder.invariant]
+runs = 32
+depth = 32
+
+[profile.fx-doc-registry]
+src = "packages/fx-recibu/doc-registry/src"
+test = "packages/fx-recibu/doc-registry/test"
+out = "out/fx-doc-registry"
+libs = ["packages/fx-recibu/lib", "packages/claim-vault/lib"]
+solc = "0.8.26"
+via_ir = true
+optimizer = true
+optimizer_runs = 200
+evm_version = "cancun"
+bytecode_hash = "ipfs"
+remappings = [
+    "@openzeppelin/contracts/=packages/fx-recibu/lib/openzeppelin-contracts/contracts/",
+    "forge-std/=packages/claim-vault/lib/forge-std/src/",
+]
+
+[profile.fx-doc-registry.invariant]
+runs = 16
+depth = 100
 
 # Claim vault is its own compiler input: solc 0.8.23, optimizer 99999, paris,
 # OpenZeppelin v4.9.2. upstream/ is outside src and is not compiled.

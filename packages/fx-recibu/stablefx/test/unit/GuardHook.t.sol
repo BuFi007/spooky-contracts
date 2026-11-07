@@ -8,6 +8,8 @@ import {BUFIReputationRegistry} from "../../src/identity/BUFIReputationRegistry.
 import {WorkspaceTierRegistry} from "../../src/credit/WorkspaceTierRegistry.sol";
 import {InvoiceShelf} from "../../src/invoice/InvoiceShelf.sol";
 import {BINV} from "../../src/invoice/BINV.sol";
+import {BIFTranche} from "../../src/invoice/BIFTranche.sol";
+import {WorkspaceOperatingReserve} from "../../src/rails/WorkspaceOperatingReserve.sol";
 import {RecibuSettlementGuardHook} from "../../src/hooks/RecibuSettlementGuardHook.sol";
 import {PoolKey, Currency, IPoolManager, BeforeSwapDelta, IRecibuPriceFeed} from "../../src/interfaces/IV4Types.sol";
 import {IInvoiceShelf} from "../../src/interfaces/IInvoiceShelf.sol";
@@ -604,5 +606,80 @@ contract GuardHookTest is StrictAuthorityFixture {
 
         vm.prank(poolManager);
         hook.afterSwap(requester, _key(), params, _delta(80e6, -100e6), abi.encode(c));
+    }
+
+    function test_F06_zeroAddressGuardsOnShelfReserveEscrowTokensAndReserve() public {
+        vm.startPrank(admin);
+        vm.expectRevert(InvoiceShelf.ZeroAddress.selector);
+        shelf.setReserve(WorkspaceOperatingReserve(address(0)));
+
+        vm.expectRevert(InvoiceShelf.ZeroAddress.selector);
+        shelf.setEscrow(address(0));
+        vm.stopPrank();
+
+        vm.expectRevert(BINV.ZeroAddress.selector);
+        new BINV(address(0));
+
+        vm.expectRevert(BIFTranche.ZeroAddress.selector);
+        new BIFTranche("Tranche", "TR", address(0));
+
+        vm.expectRevert(WorkspaceOperatingReserve.ZeroAddress.selector);
+        new WorkspaceOperatingReserve(usdc, address(0));
+
+        vm.expectRevert(WorkspaceOperatingReserve.ZeroAddress.selector);
+        new WorkspaceOperatingReserve(GuardUSDC(address(0)), admin);
+
+        WorkspaceOperatingReserve reserve = new WorkspaceOperatingReserve(usdc, admin);
+        vm.startPrank(admin);
+        reserve.grantRole(reserve.SHELF_ROLE(), admin);
+        vm.expectRevert(WorkspaceOperatingReserve.ZeroAddress.selector);
+        reserve.withdrawSurplus(seller, address(0), 1);
+        vm.stopPrank();
+    }
+
+    function test_F07_boundedLossWaterfallLoopAndExplicitZeroInitialization() public {
+        uint256 onTimeBefore = reputation.paidOnTimeCumulative(seller);
+        usdc.mint(servicer, 10e6);
+        vm.startPrank(servicer);
+        usdc.approve(address(shelf), 10e6);
+        shelf.applyPayment(invId, 10e6);
+        vm.stopPrank();
+        assertEq(reputation.paidOnTimeCumulative(seller), onTimeBefore);
+
+        vm.warp(block.timestamp + 30 days + Params.GRACE_STRONG + 1);
+        vm.prank(servicer);
+        shelf.markDefaulted(invId);
+        assertEq(uint8(shelf.invoiceStatus(invId)), uint8(IInvoiceShelf.Status.Defaulted));
+
+        vm.startPrank(admin);
+        shelf.grantRole(shelf.OPS_ROLE(), admin);
+        reputation.grantRole(reputation.OPS_ROLE(), address(shelf));
+        shelf.resolveDefault(invId, false);
+        vm.stopPrank();
+        assertTrue(shelf.workspaceFrozen(seller));
+
+        uint256 loss = shelf.unrecoveredLossOf(invId);
+        assertGt(loss, 0);
+        usdc.mint(servicer, loss);
+        vm.startPrank(servicer);
+        usdc.approve(address(shelf), loss);
+        shelf.recoverDefault(invId, loss);
+        vm.stopPrank();
+        assertFalse(shelf.workspaceFrozen(seller));
+    }
+
+    function test_F08_guardParamsSetEmitsIndexedPriceFeed() public {
+        MockFeed nextFeed = new MockFeed();
+        vm.expectEmit(true, false, false, true, address(hook));
+        emit RecibuSettlementGuardHook.GuardParamsSet(120, 50, address(nextFeed));
+        vm.prank(admin);
+        hook.setGuardParams(120, 50, nextFeed);
+    }
+
+    function test_F12_stablefxShelfInstallmentRemainderAndValidUntilZeroSentinel() public view {
+        uint256 scheduled0 = shelf.installmentAmount(invId, 0);
+        uint256 scheduled1 = shelf.installmentAmount(invId, 1);
+        assertEq(scheduled0 + scheduled1, 500e6);
+        assertTrue(identity.kybApproved(seller));
     }
 }

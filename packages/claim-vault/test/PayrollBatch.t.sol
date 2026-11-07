@@ -7,6 +7,7 @@ import {console2} from "forge-std/console2.sol";
 
 import {PeanutV4} from "../src/V4/PeanutV4.4.sol";
 import {PayrollBatch} from "../src/payroll/PayrollBatch.sol";
+import {ClaimVaultDeployer} from "../src/deploy/ClaimVaultDeployer.sol";
 import {ISignatureTransfer} from "../src/interfaces/ISignatureTransfer.sol";
 import {IPeanutV4MFAVault} from "../src/interfaces/IPeanutV4MFAVault.sol";
 import {ClaimSigs} from "./utils/ClaimSigs.sol";
@@ -413,5 +414,82 @@ contract PayrollBatchTest is ClaimSigs {
         ISignatureTransfer.PermitBatchTransferFrom memory permit = _oneToken(address(usd6), 101e6);
         vm.expectRevert(PayrollBatch.TooManyLines.selector);
         batch.executePayroll(permit, address(treasury), "", keccak256("f30"), p, _noClaims());
+    }
+
+    function test_F28_directPeanutV4DepositPermitsZeroPubKey20WhilePayrollBatchRejectsIt() public {
+        usd6.mint(alice, 10e6);
+        vm.startPrank(alice);
+        usd6.approve(address(vault), 10e6);
+        vm.expectRevert("ZERO PUBKEY20 REQUIRES RECIPIENT");
+        vault.makeDeposit(address(usd6), 1, 10e6, 0, address(0));
+        vm.stopPrank();
+
+        PayrollBatch.ClaimDeposit[] memory c = new PayrollBatch.ClaimDeposit[](1);
+        c[0] = PayrollBatch.ClaimDeposit(address(usd6), address(0), 1e6);
+        ISignatureTransfer.PermitBatchTransferFrom memory permit = _oneToken(address(usd6), 1e6);
+        bytes memory sig = _sign(permit, batch.witnessOf(keccak256("f28"), new PayrollBatch.Payout[](0), c), quorumPk);
+        vm.expectRevert(PayrollBatch.ZeroLinkKey.selector);
+        batch.executePayroll(permit, address(treasury), sig, keccak256("f28"), new PayrollBatch.Payout[](0), c);
+    }
+
+    function test_F29_peanutV4ConstructorAcceptsZeroEcoAndCancelMfaRotationAcceptsZero() public {
+        assertEq(vault.ecoAddress(), address(0));
+        vault.transferMFAAuthorizer(alice);
+        assertEq(vault.pendingMFAAuthorizer(), alice);
+        vm.expectRevert("ZERO MFA AUTHORIZER");
+        vault.transferMFAAuthorizer(address(0));
+        vault.cancelMFAAuthorizerTransfer();
+        assertEq(vault.pendingMFAAuthorizer(), address(0));
+    }
+
+    function test_F30_peanutV4AndPayrollBatchEnforceAuthenticatedWithdrawalsAndExactBalanceDeltas() public {
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        uint256 idx = vault.makeDeposit{value: 1 ether}(address(0), 0, 1 ether, 0, vm.addr(linkPk));
+
+        vm.prank(bob);
+        vm.expectRevert("NOT THE SENDER");
+        vault.withdrawDepositSender(idx);
+    }
+
+    function test_SafeTxBuilder_Arc5042_ClaimVaultAndPayrollBatch() public {
+        address create2Factory = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
+        address safe = 0x47Dc7D18A6E3a79F696714E7D47456a49B430D09;
+        address mfaAuthorizer = 0x9c8515333aFdB567C31CDF53CD60868f3B64b724;
+        address canonicalPermit2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+
+        vm.etch(safe, hex"600080fd");
+        vm.etch(canonicalPermit2, hex"600080fd");
+
+        vm.startPrank(safe);
+        (bool ok1, bytes memory r1) = create2Factory.call(
+            abi.encodePacked(
+                keccak256("bufi.claim-vault.deployer.v1"),
+                type(ClaimVaultDeployer).creationCode,
+                abi.encode(safe, mfaAuthorizer)
+            )
+        );
+        assertTrue(ok1);
+        assertEq(address(bytes20(r1)), 0xE57695e4CE920eB24d80697c3369aE80fa275E6a);
+
+        PeanutV4 deployedVault = PeanutV4(payable(0xeA06BF5AD08b70E4c107f3925CBC618662f88965));
+        assertEq(deployedVault.pendingOwner(), safe);
+        deployedVault.acceptOwnership();
+        assertEq(deployedVault.owner(), safe);
+        assertEq(deployedVault.MFA_AUTHORIZER(), mfaAuthorizer);
+
+        (bool ok2, bytes memory r2) = create2Factory.call(
+            abi.encodePacked(
+                keccak256("bufi.payroll-batch.v1"),
+                type(PayrollBatch).creationCode,
+                abi.encode(canonicalPermit2, address(deployedVault))
+            )
+        );
+        assertTrue(ok2);
+        PayrollBatch deployedBatch = PayrollBatch(address(bytes20(r2)));
+        assertEq(address(deployedBatch), 0xE9b96103Ddc1268F1184667F4c3E85Da75340E10);
+        assertEq(address(deployedBatch.VAULT()), address(deployedVault));
+        assertEq(address(deployedBatch.PERMIT2()), canonicalPermit2);
+        vm.stopPrank();
     }
 }

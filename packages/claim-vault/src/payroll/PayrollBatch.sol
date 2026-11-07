@@ -156,7 +156,7 @@ contract PayrollBatch is ReentrancyGuard {
         for (uint256 i; i < tokenCount; ++i) {
             address token = permit.permitted[i].token;
             uint256 received = IERC20(token).balanceOf(address(this)) - before[i];
-            if (received != owed[i]) revert ShortReceipt(token, owed[i], received);
+            if (received < owed[i] || received > owed[i]) revert ShortReceipt(token, owed[i], received);
         }
     }
 
@@ -168,7 +168,7 @@ contract PayrollBatch is ReentrancyGuard {
             uint256 balBefore = IERC20(p.token).balanceOf(p.recipient);
             IERC20(p.token).safeTransfer(p.recipient, p.amount);
             uint256 received = IERC20(p.token).balanceOf(p.recipient) - balBefore;
-            if (received != p.amount) revert ShortReceipt(p.token, p.amount, received);
+            if (received < p.amount || received > p.amount) revert ShortReceipt(p.token, p.amount, received);
             emit PayrollPayout(payrollId, p.token, p.recipient, p.amount);
         }
     }
@@ -195,7 +195,8 @@ contract PayrollBatch is ReentrancyGuard {
     ) internal view {
         for (uint256 i; i < permit.permitted.length; ++i) {
             address token = permit.permitted[i].token;
-            if (IERC20(token).balanceOf(address(this)) != before[i]) revert Retained(token);
+            uint256 balAfter = IERC20(token).balanceOf(address(this));
+            if (balAfter < before[i] || balAfter > before[i]) revert Retained(token);
         }
     }
 

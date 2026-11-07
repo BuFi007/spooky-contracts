@@ -117,6 +117,28 @@ CONTRACTS = [
     ),
     (
         "fx",
+        "fx-recibu/hub",
+        "0.8.26",
+        "cancun",
+        "packages/fx-recibu/hub/src",
+        "packages/fx-recibu/lib",
+        "src/identity/BUFIIdentityRegistry.sol",
+        "BUFIIdentityRegistry",
+        {"5042": "0xe3d6de22135bbd463c0a97a5196782cbcc3f3322"},
+    ),
+    (
+        "fx",
+        "fx-recibu/hub",
+        "0.8.26",
+        "cancun",
+        "packages/fx-recibu/hub/src",
+        "packages/fx-recibu/lib",
+        "src/identity/BUFIReputationRegistry.sol",
+        "BUFIReputationRegistry",
+        {"5042": "0x30015db351747e39102da3f65f51ce0207052415"},
+    ),
+    (
+        "fx",
         "fx-recibu/spoke-cctp",
         "0.8.26",
         "cancun",
@@ -208,6 +230,7 @@ def solc_bin(version: str) -> str:
     candidates = [
         pathlib.Path(f"/tmp/solcbin/solc-{version}"),
         pathlib.Path.home() / ".svm" / version / f"solc-{version}",
+        pathlib.Path.home() / "Library" / "Application Support" / "svm" / version / f"solc-{version}",
         ROOT / ".tools" / f"solc-{version}",
     ]
     for path in candidates:

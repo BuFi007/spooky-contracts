@@ -446,7 +446,7 @@ contract PeanutV44BufiTest is ClaimSigs {
         vm.prank(owner);
         vault.transferMFAAuthorizer(authorizer2);
         vm.prank(owner);
-        vault.transferMFAAuthorizer(address(0));
+        vault.cancelMFAAuthorizerTransfer();
         vm.prank(authorizer2);
         vm.expectRevert("NOT THE PENDING MFA AUTHORIZER");
         vault.acceptMFAAuthorizer();
@@ -455,6 +455,7 @@ contract PeanutV44BufiTest is ClaimSigs {
 
     function test_rotation_zeroAuthorizerCanNeverBeInstalled() public {
         vm.prank(owner);
+        vm.expectRevert("ZERO MFA AUTHORIZER");
         vault.transferMFAAuthorizer(address(0));
         vm.prank(address(0));
         vm.expectRevert("NOT THE PENDING MFA AUTHORIZER");
@@ -517,12 +518,11 @@ contract PeanutV44BufiTest is ClaimSigs {
 
     // ------------------------------------------- upstream behaviour pinned for findings
 
-    /// FINDING F-2: a deposit whose pubKey20 is address(0) needs no link signature at all.
+    /// FINDING F-2: a deposit whose pubKey20 is address(0) and recipient is address(0) is now rejected.
     function test_finding_zeroPubKey_isClaimableByAnyoneWithMfa() public {
         vm.prank(sender);
-        uint256 idx = vault.makeMFADeposit(ARC_USDC, 1, AMOUNT, 0, address(0));
-        vault.withdrawMFADeposit(idx, bob, "", _mfaSig(authPk, idx, bob));
-        assertEq(usdc.balanceOf(bob), AMOUNT);
+        vm.expectRevert("ZERO PUBKEY20 REQUIRES RECIPIENT");
+        vault.makeMFADeposit(ARC_USDC, 1, AMOUNT, 0, address(0));
     }
 
     /// FINDING F-02 (was F-3): native value attached to an ERC-20 deposit is now rejected.
@@ -619,7 +619,9 @@ contract PeanutV44BufiTest is ClaimSigs {
         vm.startPrank(owner);
         vault.transferMFAAuthorizer(authorizer2);
         assertEq(vault.pendingMFAAuthorizer(), authorizer2);
+        vm.expectRevert("ZERO MFA AUTHORIZER");
         vault.transferMFAAuthorizer(address(0));
+        vault.cancelMFAAuthorizerTransfer();
         assertEq(vault.pendingMFAAuthorizer(), address(0));
         vm.stopPrank();
     }
