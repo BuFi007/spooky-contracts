@@ -202,3 +202,22 @@ None. All 30 findings (`F-01` through `F-30`) have been remediated in the produc
 | --- | --- | --- | --- |
 | Antigravity Principal Security Reviewer | Max-level manual review + full remediation + Safe Transaction Builder production release + Foundry verification | 67 / 67 (`src/`) + 1 upstream reference | End-to-end review and complete remediation of all 30 findings (`F-01` through `F-30`) across all 10 Foundry profiles (`default`, `treasury-v3`, `agent-policy`, `fx-hub`, `fx-spoke`, `fx-memo-v1`, `fx-stablefx`, `fx-cctp-forwarder`, `fx-doc-registry`, `claim-vault`); Solar 0.1.8 production compilation and Safe Transaction Builder v1.16.5 batch generation; Foundry regression and Safe batch simulation suite (`test_F01_...` through `test_F30_...` and `test_SafeTxBuilder_...`, 418 passed / 0 failed) |
 | Slither Static Analyzer (`0.11.6`) | Full 102-detector static analysis (pre-fix and post-fix) | 67 / 67 (`src/`) | Executed across all 10 Foundry profiles with `solc` `0.8.24`, `0.8.26`, and `0.8.23`; verified remediation across all 27 modified production contracts |
+
+### Live On-Chain Production & Testnet Deployments (2026-11-07)
+
+All 57 remediated contract instances across Arc Mainnet (`5042`), Avalanche C-Chain (`43114`), Arc Testnet (`5042002`), and Base Mainnet (`8453`) were deployed on-chain via Arachnid CREATE2 (`0x4e59b44847b379578588920cA78FbF26c0B4956C`) and verified against `eth_getCode` (`deployments/live-receipts-2026-11-07.json`):
+
+| Step | Chain | Target Safe / MultiSend | Transaction Hash | Block | Gas Used | Status |
+| --- | --- | --- | --- | --- | --- | --- |
+| `arc-5042-1a` | Arc Mainnet (`5042`) | `0x47Dc7D18A6E3a79F696714E7D47456a49B430D09` | `0xa19e419530ce10bfd989019ce2ddb1109abd08525553ab6561322c6b81742e2c` | `29967604` | `5,935,031` | `1` (29/29 Arc contracts live) |
+| `arc-5042-1b` | Arc Mainnet (`5042`) | `0x47Dc7D18A6E3a79F696714E7D47456a49B430D09` | `0x247a56c6426550954bc08cca4e605e9d4a22e9c0d24f9ef3ed6d12d0ce6c239d` | `29967627` | `5,151,465` | `1` |
+| `arc-5042-2a` | Arc Mainnet (`5042`) | `0x47Dc7D18A6E3a79F696714E7D47456a49B430D09` | `0x9b01a9b2357f1ddfe53dc55a43d4eb27a1a0a6b737345b78da800b4d6aa11bf0` | `29967640` | `6,915,073` | `1` |
+| `arc-5042-2b` | Arc Mainnet (`5042`) | `0x47Dc7D18A6E3a79F696714E7D47456a49B430D09` | `0x1e4895accadb23103797620a1d67930b0dd12c665cfc51c0ddcadb28de9243a2` | `29967656` | `6,145,488` | `1` |
+| `arc-5042-3` | Arc Mainnet (`5042`) | `0x47Dc7D18A6E3a79F696714E7D47456a49B430D09` | `0xc04d9e7943a2031e0343e3ad81584190921be4f3d9d13c38a98c57796e4dd199` | `29967672` | `5,717,910` | `1` (`ClaimVaultDeployer`, `PeanutV4`, `PayrollBatch`, `AgentGatewayAccountFactory`) |
+| `avax-43114-topup` | Avalanche C-Chain (`43114`) | `0x47Dc7D18A6E3a79F696714E7D47456a49B430D09` | `0x093725ba744e7f850d7581ef4c66301a8de1e068887caaa6ded2fc12e5fb7eee` | `99652105` | `60,024` | `1` |
+| `avax-43114-1a` | Avalanche C-Chain (`43114`) | `0xA3a40fa2d82C0224c40b1Ed7E07cb474B7D1468B` | `0x1a12b3bbee99e0d9096ca5d839ba1dc3e504c88eba3579f68048ab16608df05d` | `99652109` | `5,627,631` | `1` (12/12 Avalanche contracts live) |
+| `avax-43114-1b` | Avalanche C-Chain (`43114`) | `0xA3a40fa2d82C0224c40b1Ed7E07cb474B7D1468B` | `0xa57f2f711573e14a7719daac4d394e3f479c30dceb96ccdb0227e411677f9e17` | `99652114` | `7,499,026` | `1` |
+| `avax-43114-1c` | Avalanche C-Chain (`43114`) | `0xA3a40fa2d82C0224c40b1Ed7E07cb474B7D1468B` | `0xe887c57fe87449d5f43a398ccf0a8c7db14b4fe14f1857b9ed2c38d83b89afe2` | `99652117` | `4,200,500` | `1` (`ClaimVaultDeployer`, `PeanutV4`, `PayrollBatch`) |
+| `arc-testnet-5042002-1a` | Arc Testnet (`5042002`) | `0xA3a40fa2d82C0224c40b1Ed7E07cb474B7D1468B` | `0xa546acf282727448ce6ba99e70f0670436ce07d2a2d396825c7ba099e55255b7` | `71157851` | `9,367,036` | `1` (11/11 Arc Testnet contracts live) |
+| `arc-testnet-5042002-1b` | Arc Testnet (`5042002`) | `0xA3a40fa2d82C0224c40b1Ed7E07cb474B7D1468B` | `0x97ac77d0b8eff40f995006008da276f27ee7497f5c705c0ec0eb96e228f7c7f0` | `71157867` | `4,180,600` | `1` (`ClaimVaultDeployer`, `PeanutV4`, `PayrollBatch`) |
+| `base-8453` | Base Mainnet (`8453`) | `0x9641d764fc13c8B624c04430C7356C1C7C8102e2` | `0x00bcd410f6055d95c61bdc8d6ef7d70d0ae1d8dcbc7b5f36c9af573ddd687dbd` | `54220240` | `4,858,836` | `1` (5/5 Base contracts live) |

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-11-06",
+  "updatedAt": "2026-11-07",
   "compiler": {
     "frontend": "solar 0.1.8",
     "forge": "1.6.0-dev",
@@ -47,7 +47,39 @@
         "PeanutV4": "0xeA06BF5AD08b70E4c107f3925CBC618662f88965",
         "PayrollBatch": "0xE9b96103Ddc1268F1184667F4c3E85Da75340E10",
         "AgentGatewayAccountFactory": "0xC4c3886A7f66E49fF95d7A15a12958b4cBa0eA3C"
-      }
+      },
+      "deploymentTransactions": [
+        {
+          "step": "arc-5042-1a",
+          "txHash": "0xa19e419530ce10bfd989019ce2ddb1109abd08525553ab6561322c6b81742e2c",
+          "blockNumber": 29967604,
+          "gasUsed": 5935031
+        },
+        {
+          "step": "arc-5042-1b",
+          "txHash": "0x247a56c6426550954bc08cca4e605e9d4a22e9c0d24f9ef3ed6d12d0ce6c239d",
+          "blockNumber": 29967627,
+          "gasUsed": 5151465
+        },
+        {
+          "step": "arc-5042-2a",
+          "txHash": "0x9b01a9b2357f1ddfe53dc55a43d4eb27a1a0a6b737345b78da800b4d6aa11bf0",
+          "blockNumber": 29967640,
+          "gasUsed": 6915073
+        },
+        {
+          "step": "arc-5042-2b",
+          "txHash": "0x1e4895accadb23103797620a1d67930b0dd12c665cfc51c0ddcadb28de9243a2",
+          "blockNumber": 29967656,
+          "gasUsed": 6145488
+        },
+        {
+          "step": "arc-5042-3",
+          "txHash": "0xc04d9e7943a2031e0343e3ad81584190921be4f3d9d13c38a98c57796e4dd199",
+          "blockNumber": 29967672,
+          "gasUsed": 5717910
+        }
+      ]
     },
     "43114": {
       "name": "Avalanche C-Chain Mainnet",
@@ -61,8 +93,37 @@
         "SpokeMemoConduit": "0x273B51467f3e84eda3B443a2Ee81cafD4622f775",
         "MemoConduit": "0x52Dd9c372C6ea4afB29747f49436F628A1f21E32",
         "CctpDepositForwarderImplementation": "0x1612F9A755e833Daf626BFD6952deCE9a76BAf4C",
-        "CctpDepositForwarderFactory": "0x47Be2882B335Eba84C3908a2f01705cb09d296CA"
-      }
+        "CctpDepositForwarderFactory": "0x47Be2882B335Eba84C3908a2f01705cb09d296CA",
+        "ClaimVaultDeployer": "0x5BC58Ea1721A5976e68468b89019920b71C73CD5",
+        "PeanutV4": "0x6bd53a40ff9b37543174553531C00C1c32E16B6b",
+        "PayrollBatch": "0x60906130C29B3899b14b9EB04e8ca9F915Eb86E4"
+      },
+      "deploymentTransactions": [
+        {
+          "step": "avax-43114-topup",
+          "txHash": "0x093725ba744e7f850d7581ef4c66301a8de1e068887caaa6ded2fc12e5fb7eee",
+          "blockNumber": 99652105,
+          "gasUsed": 60024
+        },
+        {
+          "step": "avax-43114-1a",
+          "txHash": "0x1a12b3bbee99e0d9096ca5d839ba1dc3e504c88eba3579f68048ab16608df05d",
+          "blockNumber": 99652109,
+          "gasUsed": 5627631
+        },
+        {
+          "step": "avax-43114-1b",
+          "txHash": "0xa57f2f711573e14a7719daac4d394e3f479c30dceb96ccdb0227e411677f9e17",
+          "blockNumber": 99652114,
+          "gasUsed": 7499026
+        },
+        {
+          "step": "avax-43114-1c",
+          "txHash": "0xe887c57fe87449d5f43a398ccf0a8c7db14b4fe14f1857b9ed2c38d83b89afe2",
+          "blockNumber": 99652117,
+          "gasUsed": 4200500
+        }
+      ]
     },
     "5042002": {
       "name": "Arc Testnet",
@@ -75,16 +136,44 @@
         "DocumentReceivableRegistry": "0x4955cb7B853860a40F075957C30513257210EDB3",
         "MemoConduit": "0xf31E0557505deb66B31571591cAacAbcD7D6AD71",
         "CctpDepositForwarderImplementation": "0x1612F9A755e833Daf626BFD6952deCE9a76BAf4C",
-        "CctpDepositForwarderFactory": "0xEcbe7DC7db6fD6193F83C0B38ccd420e327a56aD"
-      }
+        "CctpDepositForwarderFactory": "0xEcbe7DC7db6fD6193F83C0B38ccd420e327a56aD",
+        "ClaimVaultDeployer": "0x5BC58Ea1721A5976e68468b89019920b71C73CD5",
+        "PeanutV4": "0x6bd53a40ff9b37543174553531C00C1c32E16B6b",
+        "PayrollBatch": "0x60906130C29B3899b14b9EB04e8ca9F915Eb86E4"
+      },
+      "deploymentTransactions": [
+        {
+          "step": "arc-testnet-5042002-1a",
+          "txHash": "0xa546acf282727448ce6ba99e70f0670436ce07d2a2d396825c7ba099e55255b7",
+          "blockNumber": 71157851,
+          "gasUsed": 9367036
+        },
+        {
+          "step": "arc-testnet-5042002-1b",
+          "txHash": "0x97ac77d0b8eff40f995006008da276f27ee7497f5c705c0ec0eb96e228f7c7f0",
+          "blockNumber": 71157867,
+          "gasUsed": 4180600
+        }
+      ]
     },
     "8453": {
       "name": "Base Mainnet",
       "safe": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
       "contracts": {
         "CctpDepositForwarderImplementation": "0x1612F9A755e833Daf626BFD6952deCE9a76BAf4C",
-        "CctpDepositForwarderFactory": "0xf56Fe0bA9B9D951035f3422bb11D030D0c557AdF"
-      }
+        "CctpDepositForwarderFactory": "0xf56Fe0bA9B9D951035f3422bb11D030D0c557AdF",
+        "ClaimVaultDeployer": "0xE57695e4CE920eB24d80697c3369aE80fa275E6a",
+        "PeanutV4": "0xeA06BF5AD08b70E4c107f3925CBC618662f88965",
+        "PayrollBatch": "0xE9b96103Ddc1268F1184667F4c3E85Da75340E10"
+      },
+      "deploymentTransactions": [
+        {
+          "step": "base-8453",
+          "txHash": "0x00bcd410f6055d95c61bdc8d6ef7d70d0ae1d8dcbc7b5f36c9af573ddd687dbd",
+          "blockNumber": 54220240,
+          "gasUsed": 4858836
+        }
+      ]
     }
   }
 }

@@ -1,25 +1,113 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-06",
+  "generatedAt": "2026-11-07",
   "txBuilderVersion": "1.16.5",
   "compiler": "solar 0.1.8 / forge 1.6.0-dev",
   "create2Factory": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
   "batches": {
-    "safe-arc-5042-treasury-conduits.json": {
+    "safe-all-arc-5042-master-batch.json": {
       "chainId": "5042",
       "safeAddress": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
-      "name": "BUFI Arc Mainnet (5042) \u2014 Hardened Treasury Conduits Deployment & Allowlist Wiring",
-      "transactionCount": 47,
-      "checksum": "0x184bc9d3e741323c6331db790d06b04eacb15bc423a8ff93a5044429b00993d0",
-      "sha256": "0xde4e10456fbe645a1b437276d5329bc598dbb79710f646ad069cc8741f04155c"
+      "name": "BUFI Arc Mainnet (5042) \u2014 Complete Hardened Production Master Deployment & Wiring Batch",
+      "transactionCount": 81,
+      "checksum": "0xfc02e0a7d866a997d86972c215934e0c75c931dc11b6f50227d1e8e8cdb18913",
+      "sha256": "0xdd66f538de144ec3dee18a071dfab4b8d5296048d10b99a628175f6e21925cc8",
+      "executedTransactions": [
+        {
+          "step": "arc-5042-1a",
+          "txHash": "0xa19e419530ce10bfd989019ce2ddb1109abd08525553ab6561322c6b81742e2c",
+          "blockNumber": 29967604,
+          "gasUsed": 5935031
+        },
+        {
+          "step": "arc-5042-1b",
+          "txHash": "0x247a56c6426550954bc08cca4e605e9d4a22e9c0d24f9ef3ed6d12d0ce6c239d",
+          "blockNumber": 29967627,
+          "gasUsed": 5151465
+        },
+        {
+          "step": "arc-5042-2a",
+          "txHash": "0x9b01a9b2357f1ddfe53dc55a43d4eb27a1a0a6b737345b78da800b4d6aa11bf0",
+          "blockNumber": 29967640,
+          "gasUsed": 6915073
+        },
+        {
+          "step": "arc-5042-2b",
+          "txHash": "0x1e4895accadb23103797620a1d67930b0dd12c665cfc51c0ddcadb28de9243a2",
+          "blockNumber": 29967656,
+          "gasUsed": 6145488
+        },
+        {
+          "step": "arc-5042-3",
+          "txHash": "0xc04d9e7943a2031e0343e3ad81584190921be4f3d9d13c38a98c57796e4dd199",
+          "blockNumber": 29967672,
+          "gasUsed": 5717910
+        }
+      ]
     },
-    "safe-arc-5042-fx-recibu-hub.json": {
+    "safe-arc-5042-1a-treasury-conduits-part1.json": {
       "chainId": "5042",
       "safeAddress": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
-      "name": "BUFI Arc Mainnet (5042) \u2014 Hardened FX-Recibu Hub, MemoConduit & Registries Deployment",
-      "transactionCount": 28,
-      "checksum": "0x2f7730d866624adf3e985541be79534f23da618d4b29009c6283cefbde477d06",
-      "sha256": "0x13fcfa48767db761d9239e318bd30577b25c7311ec3efea457d1c073376749fc"
+      "name": "BUFI Arc 5042 \u2014 Batch 1A: Treasury Conduits Part 1 (5 Conduits + Allowlists)",
+      "transactionCount": 29,
+      "checksum": "0xf6b3d5238811497f65cabfc8889344cca0dccde417c88e0d1da7f2191a90e92b",
+      "sha256": "0x35d338bd4d22385df2a32f20fc2ac1322523bfac89c4c3f39f951fb35f81ad00",
+      "executedTransactions": [
+        {
+          "step": "arc-5042-1a",
+          "txHash": "0xa19e419530ce10bfd989019ce2ddb1109abd08525553ab6561322c6b81742e2c",
+          "blockNumber": 29967604,
+          "gasUsed": 5935031
+        }
+      ]
+    },
+    "safe-arc-5042-1b-treasury-conduits-part2.json": {
+      "chainId": "5042",
+      "safeAddress": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
+      "name": "BUFI Arc 5042 \u2014 Batch 1B: Treasury Conduits Part 2 (4 Conduits + Allowlists)",
+      "transactionCount": 18,
+      "checksum": "0xb893d6de71527e20f10c29e0a5086a4d7514a6a4e5c13afe8dda278e432f9ce8",
+      "sha256": "0xb9cfdf02fdc61f80155f70d59514a31652b3e22a2c3edf1c5309d9d8579cba6b",
+      "executedTransactions": [
+        {
+          "step": "arc-5042-1b",
+          "txHash": "0x247a56c6426550954bc08cca4e605e9d4a22e9c0d24f9ef3ed6d12d0ce6c239d",
+          "blockNumber": 29967627,
+          "gasUsed": 5151465
+        }
+      ]
+    },
+    "safe-arc-5042-2a-fx-recibu-hub-part1.json": {
+      "chainId": "5042",
+      "safeAddress": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
+      "name": "BUFI Arc 5042 \u2014 Batch 2A: FX & Recibu Hub Part 1 (Identity/Tier/Reserve/InvoiceShelf)",
+      "transactionCount": 15,
+      "checksum": "0x069c054a6fc937a9862b2e2dac5e8ee14d1ba77c0d9bcfa4dd2410d70b8c079f",
+      "sha256": "0xc598cc989af7c3bce50136a70ebc05924a71d9ceef1a8bd6d68b4dd9948c7078",
+      "executedTransactions": [
+        {
+          "step": "arc-5042-2a",
+          "txHash": "0x9b01a9b2357f1ddfe53dc55a43d4eb27a1a0a6b737345b78da800b4d6aa11bf0",
+          "blockNumber": 29967640,
+          "gasUsed": 6915073
+        }
+      ]
+    },
+    "safe-arc-5042-2b-fx-recibu-hub-part2.json": {
+      "chainId": "5042",
+      "safeAddress": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
+      "name": "BUFI Arc 5042 \u2014 Batch 2B: FX & Recibu Hub Part 2 (Escrow/Memo/DocRegistry/CCTP)",
+      "transactionCount": 13,
+      "checksum": "0x2bfd105e2b39d42dca0716aae6a42f57d98db32956eaa7457fb8f19a9914552c",
+      "sha256": "0x022b7ddd1b384309f51a04e617635faca8edd1530ca2a23a5b132d3691f2d68d",
+      "executedTransactions": [
+        {
+          "step": "arc-5042-2b",
+          "txHash": "0x1e4895accadb23103797620a1d67930b0dd12c665cfc51c0ddcadb28de9243a2",
+          "blockNumber": 29967656,
+          "gasUsed": 6145488
+        }
+      ]
     },
     "safe-arc-5042-claim-vault-and-agent-policy.json": {
       "chainId": "5042",
@@ -27,39 +115,189 @@
       "name": "BUFI Arc Mainnet (5042) \u2014 Hardened ClaimVault (PeanutV4.4), PayrollBatch & AgentGatewayAccountFactory",
       "transactionCount": 6,
       "checksum": "0x007fde284d2933b85e373204af10c2bd7e247afcfc73dec5f2c6b42f5c93b619",
-      "sha256": "0x6989cabb40e4c246eaf1fa8aecfac0e4b7f78fce29cad27550ddc8a401d42477"
+      "sha256": "0x6989cabb40e4c246eaf1fa8aecfac0e4b7f78fce29cad27550ddc8a401d42477",
+      "executedTransactions": [
+        {
+          "step": "arc-5042-3",
+          "txHash": "0xc04d9e7943a2031e0343e3ad81584190921be4f3d9d13c38a98c57796e4dd199",
+          "blockNumber": 29967672,
+          "gasUsed": 5717910
+        }
+      ]
     },
-    "safe-all-arc-5042-master-batch.json": {
+    "safe-arc-5042-fx-recibu-hub.json": {
       "chainId": "5042",
       "safeAddress": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
-      "name": "BUFI Arc Mainnet (5042) \u2014 Complete Hardened Production Master Deployment & Wiring Batch",
-      "transactionCount": 81,
-      "checksum": "0xfc02e0a7d866a997d86972c215934e0c75c931dc11b6f50227d1e8e8cdb18913",
-      "sha256": "0xdd66f538de144ec3dee18a071dfab4b8d5296048d10b99a628175f6e21925cc8"
+      "name": "BUFI Arc Mainnet (5042) \u2014 Hardened FX-Recibu Hub, MemoConduit & Registries Deployment",
+      "transactionCount": 28,
+      "checksum": "0x2f7730d866624adf3e985541be79534f23da618d4b29009c6283cefbde477d06",
+      "sha256": "0x13fcfa48767db761d9239e318bd30577b25c7311ec3efea457d1c073376749fc",
+      "executedTransactions": [
+        {
+          "step": "arc-5042-2a",
+          "txHash": "0x9b01a9b2357f1ddfe53dc55a43d4eb27a1a0a6b737345b78da800b4d6aa11bf0",
+          "blockNumber": 29967640,
+          "gasUsed": 6915073
+        },
+        {
+          "step": "arc-5042-2b",
+          "txHash": "0x1e4895accadb23103797620a1d67930b0dd12c665cfc51c0ddcadb28de9243a2",
+          "blockNumber": 29967656,
+          "gasUsed": 6145488
+        }
+      ]
     },
-    "safe-avalanche-43114-conduits-and-spoke.json": {
-      "chainId": "43114",
+    "safe-arc-5042-treasury-conduits.json": {
+      "chainId": "5042",
+      "safeAddress": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
+      "name": "BUFI Arc Mainnet (5042) \u2014 Hardened Treasury Conduits Deployment & Allowlist Wiring",
+      "transactionCount": 47,
+      "checksum": "0x184bc9d3e741323c6331db790d06b04eacb15bc423a8ff93a5044429b00993d0",
+      "sha256": "0xde4e10456fbe645a1b437276d5329bc598dbb79710f646ad069cc8741f04155c",
+      "executedTransactions": [
+        {
+          "step": "arc-5042-1a",
+          "txHash": "0xa19e419530ce10bfd989019ce2ddb1109abd08525553ab6561322c6b81742e2c",
+          "blockNumber": 29967604,
+          "gasUsed": 5935031
+        },
+        {
+          "step": "arc-5042-1b",
+          "txHash": "0x247a56c6426550954bc08cca4e605e9d4a22e9c0d24f9ef3ed6d12d0ce6c239d",
+          "blockNumber": 29967627,
+          "gasUsed": 5151465
+        }
+      ]
+    },
+    "safe-arc-testnet-5042002-1b-claim-vault-and-payroll-batch.json": {
+      "chainId": "5042002",
       "safeAddress": "0xA3a40fa2d82C0224c40b1Ed7E07cb474B7D1468B",
-      "name": "BUFI Avalanche C-Chain (43114) \u2014 Hardened Conduits, SpokeMemoConduit & CCTP Forwarder Batch",
-      "transactionCount": 30,
-      "checksum": "0xe67877ca351870401c2fc718694c5492615a73518b0e629725f18c84555f5d9f",
-      "sha256": "0x6bf1a1fc8c533bfc6762e58b68e6d10d3b7a48fdc16844e82d3b34a7183840e3"
+      "name": "BUFI Arc Testnet 5042002 \u2014 Batch 1B: ClaimVault (PeanutV4.4) & PayrollBatch",
+      "transactionCount": 3,
+      "checksum": "0x0b04e4193ae130574c9625d552f0109da630d2a27c787976b44d7ca693f3c9be",
+      "sha256": "0x741d79a21771fbcf19fe16ed0063c9868b28fe2a361a274ef50928e8026e0087",
+      "executedTransactions": [
+        {
+          "step": "arc-testnet-5042002-1b",
+          "txHash": "0x97ac77d0b8eff40f995006008da276f27ee7497f5c705c0ec0eb96e228f7c7f0",
+          "blockNumber": 71157867,
+          "gasUsed": 4180600
+        }
+      ]
     },
     "safe-arc-testnet-5042002-master-batch.json": {
       "chainId": "5042002",
       "safeAddress": "0xA3a40fa2d82C0224c40b1Ed7E07cb474B7D1468B",
       "name": "BUFI Arc Testnet (5042002) \u2014 Hardened Conduits, AgentPolicy, MemoConduit & CCTP Forwarder Batch",
-      "transactionCount": 10,
-      "checksum": "0xce1542b0a9d32676d742660d6a8b6fed81c740bcaedad8d1bf38fcf421699c99",
-      "sha256": "0x1fd92b5b55281cf216feb379b30db00e5d55679c48bd7d437e24c5ce096592ed"
+      "transactionCount": 13,
+      "checksum": "0xa6e69f872f1f5d0abbd48f4deb7b9ac7b8ce979826b496b5a2eedca1b471090f",
+      "sha256": "0xa5a1ea52ae87fc5cd28b046b11a385423f07f2372000ff32ec92eef841d57352",
+      "executedTransactions": [
+        {
+          "step": "arc-testnet-5042002-1a",
+          "txHash": "0xa546acf282727448ce6ba99e70f0670436ce07d2a2d396825c7ba099e55255b7",
+          "blockNumber": 71157851,
+          "gasUsed": 9367036
+        },
+        {
+          "step": "arc-testnet-5042002-1b",
+          "txHash": "0x97ac77d0b8eff40f995006008da276f27ee7497f5c705c0ec0eb96e228f7c7f0",
+          "blockNumber": 71157867,
+          "gasUsed": 4180600
+        }
+      ]
+    },
+    "safe-avalanche-43114-1a-conduits-part1.json": {
+      "chainId": "43114",
+      "safeAddress": "0xa3A40fA2D82C0224c40b1eD7E07cB474B7D1468b",
+      "name": "BUFI Avalanche 43114 \u2014 Batch 1A: Conduits Part 1 (4 Conduits + Allowlists)",
+      "transactionCount": 19,
+      "checksum": "0x3ee6ff1068144a517787b6e9c46b3657bbe96cdd08f3a5b180bf31e9808b6278",
+      "sha256": "0x96e5eda6d1c4968390cccb860dc9bc38b7294f61ab7e0e78414a33dc08ce7780",
+      "executedTransactions": [
+        {
+          "step": "avax-43114-1a",
+          "txHash": "0x1a12b3bbee99e0d9096ca5d839ba1dc3e504c88eba3579f68048ab16608df05d",
+          "blockNumber": 99652109,
+          "gasUsed": 5627631
+        }
+      ]
+    },
+    "safe-avalanche-43114-1b-conduits-and-spoke-part2.json": {
+      "chainId": "43114",
+      "safeAddress": "0xa3A40fA2D82C0224c40b1eD7E07cB474B7D1468b",
+      "name": "BUFI Avalanche 43114 \u2014 Batch 1B: Conduits & Spoke Part 2 (5 Contracts + Allowlists)",
+      "transactionCount": 11,
+      "checksum": "0x35b0284f57ea72bb6a16c382df7167568c52c7917587da6cc8edb8f3dacf1b78",
+      "sha256": "0xb0b511a84df78da8d1d303ba6b096c57166de5d066f0d6737f5950b126743bd8",
+      "executedTransactions": [
+        {
+          "step": "avax-43114-1b",
+          "txHash": "0xa57f2f711573e14a7719daac4d394e3f479c30dceb96ccdb0227e411677f9e17",
+          "blockNumber": 99652114,
+          "gasUsed": 7499026
+        }
+      ]
+    },
+    "safe-avalanche-43114-1c-claim-vault-and-payroll-batch.json": {
+      "chainId": "43114",
+      "safeAddress": "0xA3a40fa2d82C0224c40b1Ed7E07cb474B7D1468B",
+      "name": "BUFI Avalanche 43114 \u2014 Batch 1C: ClaimVault (PeanutV4.4) & PayrollBatch",
+      "transactionCount": 3,
+      "checksum": "0xadf5cf946e672941991e64242135a5ce8bde448809c49862167eb3adc00ccaa7",
+      "sha256": "0xc24769f76743a5a2ed43501c02f02ae228f7d49270bada6e54e95cb2445da649",
+      "executedTransactions": [
+        {
+          "step": "avax-43114-1c",
+          "txHash": "0xe887c57fe87449d5f43a398ccf0a8c7db14b4fe14f1857b9ed2c38d83b89afe2",
+          "blockNumber": 99652117,
+          "gasUsed": 4200500
+        }
+      ]
+    },
+    "safe-avalanche-43114-conduits-and-spoke.json": {
+      "chainId": "43114",
+      "safeAddress": "0xA3a40fa2d82C0224c40b1Ed7E07cb474B7D1468B",
+      "name": "BUFI Avalanche C-Chain (43114) \u2014 Hardened Conduits, SpokeMemoConduit & CCTP Forwarder Batch",
+      "transactionCount": 33,
+      "checksum": "0xf7d4e305edc949d2ec0061cbe72cf7717becad95a33384802cc24485e697087c",
+      "sha256": "0x6d076d8d92979868df52d8a69bdb668138873d8bcaa5cce27b0d4f3b9c4aed19",
+      "executedTransactions": [
+        {
+          "step": "avax-43114-1a",
+          "txHash": "0x1a12b3bbee99e0d9096ca5d839ba1dc3e504c88eba3579f68048ab16608df05d",
+          "blockNumber": 99652109,
+          "gasUsed": 5627631
+        },
+        {
+          "step": "avax-43114-1b",
+          "txHash": "0xa57f2f711573e14a7719daac4d394e3f479c30dceb96ccdb0227e411677f9e17",
+          "blockNumber": 99652114,
+          "gasUsed": 7499026
+        },
+        {
+          "step": "avax-43114-1c",
+          "txHash": "0xe887c57fe87449d5f43a398ccf0a8c7db14b4fe14f1857b9ed2c38d83b89afe2",
+          "blockNumber": 99652117,
+          "gasUsed": 4200500
+        }
+      ]
     },
     "safe-base-8453-cctp-forwarder.json": {
       "chainId": "8453",
       "safeAddress": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
-      "name": "BUFI Base Mainnet (8453) \u2014 Hardened CCTP Deposit Forwarder & Factory Batch",
-      "transactionCount": 2,
-      "checksum": "0x2ddb7093d15647a0f1633292a3406147eac7dff84022e516d669ec0e5e92233f",
-      "sha256": "0xe02733994ae98e36f49d21bda59878bc61bcbd6f52f6ac759740b8d558a9bfc5"
+      "name": "BUFI Base Mainnet (8453) \u2014 Hardened CCTP Deposit Forwarder, ClaimVault & PayrollBatch",
+      "transactionCount": 4,
+      "checksum": "0x18661ea7327ef02a3b5c5fc5e6b46e8d7c8fe158feafe985fadf203ce80d10b1",
+      "sha256": "0xae897bf09c2ba91cf69024d0d5f4680fc03cd47f5af24fc3b81cd895493e0108",
+      "executedTransactions": [
+        {
+          "step": "base-8453",
+          "txHash": "0x00bcd410f6055d95c61bdc8d6ef7d70d0ae1d8dcbc7b5f36c9af573ddd687dbd",
+          "blockNumber": 54220240,
+          "gasUsed": 4858836
+        }
+      ]
     }
   },
   "chains": {
@@ -96,7 +334,39 @@
         "PeanutV4": "0xeA06BF5AD08b70E4c107f3925CBC618662f88965",
         "PayrollBatch": "0xE9b96103Ddc1268F1184667F4c3E85Da75340E10",
         "AgentGatewayAccountFactory": "0xC4c3886A7f66E49fF95d7A15a12958b4cBa0eA3C"
-      }
+      },
+      "deploymentTransactions": [
+        {
+          "step": "arc-5042-1a",
+          "txHash": "0xa19e419530ce10bfd989019ce2ddb1109abd08525553ab6561322c6b81742e2c",
+          "blockNumber": 29967604,
+          "gasUsed": 5935031
+        },
+        {
+          "step": "arc-5042-1b",
+          "txHash": "0x247a56c6426550954bc08cca4e605e9d4a22e9c0d24f9ef3ed6d12d0ce6c239d",
+          "blockNumber": 29967627,
+          "gasUsed": 5151465
+        },
+        {
+          "step": "arc-5042-2a",
+          "txHash": "0x9b01a9b2357f1ddfe53dc55a43d4eb27a1a0a6b737345b78da800b4d6aa11bf0",
+          "blockNumber": 29967640,
+          "gasUsed": 6915073
+        },
+        {
+          "step": "arc-5042-2b",
+          "txHash": "0x1e4895accadb23103797620a1d67930b0dd12c665cfc51c0ddcadb28de9243a2",
+          "blockNumber": 29967656,
+          "gasUsed": 6145488
+        },
+        {
+          "step": "arc-5042-3",
+          "txHash": "0xc04d9e7943a2031e0343e3ad81584190921be4f3d9d13c38a98c57796e4dd199",
+          "blockNumber": 29967672,
+          "gasUsed": 5717910
+        }
+      ]
     },
     "43114": {
       "name": "Avalanche C-Chain Mainnet",
@@ -110,8 +380,37 @@
         "SpokeMemoConduit": "0x273B51467f3e84eda3B443a2Ee81cafD4622f775",
         "MemoConduit": "0x52Dd9c372C6ea4afB29747f49436F628A1f21E32",
         "CctpDepositForwarderImplementation": "0x1612F9A755e833Daf626BFD6952deCE9a76BAf4C",
-        "CctpDepositForwarderFactory": "0x47Be2882B335Eba84C3908a2f01705cb09d296CA"
-      }
+        "CctpDepositForwarderFactory": "0x47Be2882B335Eba84C3908a2f01705cb09d296CA",
+        "ClaimVaultDeployer": "0x5BC58Ea1721A5976e68468b89019920b71C73CD5",
+        "PeanutV4": "0x6bd53a40ff9b37543174553531C00C1c32E16B6b",
+        "PayrollBatch": "0x60906130C29B3899b14b9EB04e8ca9F915Eb86E4"
+      },
+      "deploymentTransactions": [
+        {
+          "step": "avax-43114-topup",
+          "txHash": "0x093725ba744e7f850d7581ef4c66301a8de1e068887caaa6ded2fc12e5fb7eee",
+          "blockNumber": 99652105,
+          "gasUsed": 60024
+        },
+        {
+          "step": "avax-43114-1a",
+          "txHash": "0x1a12b3bbee99e0d9096ca5d839ba1dc3e504c88eba3579f68048ab16608df05d",
+          "blockNumber": 99652109,
+          "gasUsed": 5627631
+        },
+        {
+          "step": "avax-43114-1b",
+          "txHash": "0xa57f2f711573e14a7719daac4d394e3f479c30dceb96ccdb0227e411677f9e17",
+          "blockNumber": 99652114,
+          "gasUsed": 7499026
+        },
+        {
+          "step": "avax-43114-1c",
+          "txHash": "0xe887c57fe87449d5f43a398ccf0a8c7db14b4fe14f1857b9ed2c38d83b89afe2",
+          "blockNumber": 99652117,
+          "gasUsed": 4200500
+        }
+      ]
     },
     "5042002": {
       "name": "Arc Testnet",
@@ -124,16 +423,44 @@
         "DocumentReceivableRegistry": "0x4955cb7B853860a40F075957C30513257210EDB3",
         "MemoConduit": "0xf31E0557505deb66B31571591cAacAbcD7D6AD71",
         "CctpDepositForwarderImplementation": "0x1612F9A755e833Daf626BFD6952deCE9a76BAf4C",
-        "CctpDepositForwarderFactory": "0xEcbe7DC7db6fD6193F83C0B38ccd420e327a56aD"
-      }
+        "CctpDepositForwarderFactory": "0xEcbe7DC7db6fD6193F83C0B38ccd420e327a56aD",
+        "ClaimVaultDeployer": "0x5BC58Ea1721A5976e68468b89019920b71C73CD5",
+        "PeanutV4": "0x6bd53a40ff9b37543174553531C00C1c32E16B6b",
+        "PayrollBatch": "0x60906130C29B3899b14b9EB04e8ca9F915Eb86E4"
+      },
+      "deploymentTransactions": [
+        {
+          "step": "arc-testnet-5042002-1a",
+          "txHash": "0xa546acf282727448ce6ba99e70f0670436ce07d2a2d396825c7ba099e55255b7",
+          "blockNumber": 71157851,
+          "gasUsed": 9367036
+        },
+        {
+          "step": "arc-testnet-5042002-1b",
+          "txHash": "0x97ac77d0b8eff40f995006008da276f27ee7497f5c705c0ec0eb96e228f7c7f0",
+          "blockNumber": 71157867,
+          "gasUsed": 4180600
+        }
+      ]
     },
     "8453": {
       "name": "Base Mainnet",
       "safe": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
       "contracts": {
         "CctpDepositForwarderImplementation": "0x1612F9A755e833Daf626BFD6952deCE9a76BAf4C",
-        "CctpDepositForwarderFactory": "0xf56Fe0bA9B9D951035f3422bb11D030D0c557AdF"
-      }
+        "CctpDepositForwarderFactory": "0xf56Fe0bA9B9D951035f3422bb11D030D0c557AdF",
+        "ClaimVaultDeployer": "0xE57695e4CE920eB24d80697c3369aE80fa275E6a",
+        "PeanutV4": "0xeA06BF5AD08b70E4c107f3925CBC618662f88965",
+        "PayrollBatch": "0xE9b96103Ddc1268F1184667F4c3E85Da75340E10"
+      },
+      "deploymentTransactions": [
+        {
+          "step": "base-8453",
+          "txHash": "0x00bcd410f6055d95c61bdc8d6ef7d70d0ae1d8dcbc7b5f36c9af573ddd687dbd",
+          "blockNumber": 54220240,
+          "gasUsed": 4858836
+        }
+      ]
     }
   },
   "bytecodeHashes": {
@@ -433,6 +760,152 @@
       "initcodeSha256": "0x0b7e0a402a1e7710e8cdc51357c91db014b4a235ce0f95e0d27e0bd4aaae5919",
       "runtimeKeccak256": "0x09753b69895c5cb66f79894e38cccce17bfe37f710c17268cf06dfa940cb5c07",
       "runtimeSha256": "0x913ebc11ed3af41e60ea8dca1085e1083730d4a2d84bf2f25bdcfb8f537bb627"
+    }
+  },
+  "liveTransactions": {
+    "arc-5042-1a": {
+      "id": "arc-5042-1a",
+      "chainId": 5042,
+      "txHash": "0xa19e419530ce10bfd989019ce2ddb1109abd08525553ab6561322c6b81742e2c",
+      "from": "0x4a74f022893e3f1237ef530da2df1d9b4aff4772",
+      "recordedAt": "2026-11-07T06:49:00.270Z",
+      "status": 1,
+      "blockNumber": 29967604,
+      "gasUsed": 5935031,
+      "to": "0x47dc7d18a6e3a79f696714e7d47456a49b430d09",
+      "logsCount": 31
+    },
+    "arc-5042-1b": {
+      "id": "arc-5042-1b",
+      "chainId": 5042,
+      "txHash": "0x247a56c6426550954bc08cca4e605e9d4a22e9c0d24f9ef3ed6d12d0ce6c239d",
+      "from": "0x4a74f022893e3f1237ef530da2df1d9b4aff4772",
+      "recordedAt": "2026-11-07T06:49:11.953Z",
+      "status": 1,
+      "blockNumber": 29967627,
+      "gasUsed": 5151465,
+      "to": "0x47dc7d18a6e3a79f696714e7d47456a49b430d09",
+      "logsCount": 20
+    },
+    "arc-5042-2a": {
+      "id": "arc-5042-2a",
+      "chainId": 5042,
+      "txHash": "0x9b01a9b2357f1ddfe53dc55a43d4eb27a1a0a6b737345b78da800b4d6aa11bf0",
+      "from": "0x4a74f022893e3f1237ef530da2df1d9b4aff4772",
+      "recordedAt": "2026-11-07T06:49:18.446Z",
+      "status": 1,
+      "blockNumber": 29967640,
+      "gasUsed": 6915073,
+      "to": "0x47dc7d18a6e3a79f696714e7d47456a49b430d09",
+      "logsCount": 14
+    },
+    "arc-5042-2b": {
+      "id": "arc-5042-2b",
+      "chainId": 5042,
+      "txHash": "0x1e4895accadb23103797620a1d67930b0dd12c665cfc51c0ddcadb28de9243a2",
+      "from": "0x4a74f022893e3f1237ef530da2df1d9b4aff4772",
+      "recordedAt": "2026-11-07T06:49:26.835Z",
+      "status": 1,
+      "blockNumber": 29967656,
+      "gasUsed": 6145488,
+      "to": "0x47dc7d18a6e3a79f696714e7d47456a49b430d09",
+      "logsCount": 11
+    },
+    "arc-5042-3": {
+      "id": "arc-5042-3",
+      "chainId": 5042,
+      "txHash": "0xc04d9e7943a2031e0343e3ad81584190921be4f3d9d13c38a98c57796e4dd199",
+      "from": "0x4a74f022893e3f1237ef530da2df1d9b4aff4772",
+      "recordedAt": "2026-11-07T06:49:34.901Z",
+      "status": 1,
+      "blockNumber": 29967672,
+      "gasUsed": 5717910,
+      "to": "0x47dc7d18a6e3a79f696714e7d47456a49b430d09",
+      "logsCount": 10
+    },
+    "avax-43114-topup": {
+      "id": "avax-43114-topup",
+      "chainId": 43114,
+      "txHash": "0x093725ba744e7f850d7581ef4c66301a8de1e068887caaa6ded2fc12e5fb7eee",
+      "from": "0x4a74f022893e3f1237ef530da2df1d9b4aff4772",
+      "recordedAt": "2026-11-07T06:49:41.386Z",
+      "status": 1,
+      "blockNumber": 99652105,
+      "gasUsed": 60024,
+      "to": "0x47dc7d18a6e3a79f696714e7d47456a49b430d09",
+      "logsCount": 2
+    },
+    "avax-43114-1a": {
+      "id": "avax-43114-1a",
+      "chainId": 43114,
+      "txHash": "0x1a12b3bbee99e0d9096ca5d839ba1dc3e504c88eba3579f68048ab16608df05d",
+      "from": "0x4a74f022893e3f1237ef530da2df1d9b4aff4772",
+      "recordedAt": "2026-11-07T06:49:46.909Z",
+      "status": 1,
+      "blockNumber": 99652109,
+      "gasUsed": 5627631,
+      "to": "0xa3a40fa2d82c0224c40b1ed7e07cb474b7d1468b",
+      "logsCount": 21
+    },
+    "avax-43114-1b": {
+      "id": "avax-43114-1b",
+      "chainId": 43114,
+      "txHash": "0xa57f2f711573e14a7719daac4d394e3f479c30dceb96ccdb0227e411677f9e17",
+      "from": "0x4a74f022893e3f1237ef530da2df1d9b4aff4772",
+      "recordedAt": "2026-11-07T06:49:53.237Z",
+      "status": 1,
+      "blockNumber": 99652114,
+      "gasUsed": 7499026,
+      "to": "0xa3a40fa2d82c0224c40b1ed7e07cb474b7d1468b",
+      "logsCount": 9
+    },
+    "avax-43114-1c": {
+      "id": "avax-43114-1c",
+      "chainId": 43114,
+      "txHash": "0xe887c57fe87449d5f43a398ccf0a8c7db14b4fe14f1857b9ed2c38d83b89afe2",
+      "from": "0x4a74f022893e3f1237ef530da2df1d9b4aff4772",
+      "recordedAt": "2026-11-07T06:50:01.807Z",
+      "status": 1,
+      "blockNumber": 99652117,
+      "gasUsed": 4200500,
+      "to": "0xa3a40fa2d82c0224c40b1ed7e07cb474b7d1468b",
+      "logsCount": 8
+    },
+    "arc-testnet-5042002-1a": {
+      "id": "arc-testnet-5042002-1a",
+      "chainId": 5042002,
+      "txHash": "0xa546acf282727448ce6ba99e70f0670436ce07d2a2d396825c7ba099e55255b7",
+      "from": "0x4a74f022893e3f1237ef530da2df1d9b4aff4772",
+      "recordedAt": "2026-11-07T06:50:08.519Z",
+      "status": 1,
+      "blockNumber": 71157851,
+      "gasUsed": 9367036,
+      "to": "0xa3a40fa2d82c0224c40b1ed7e07cb474b7d1468b",
+      "logsCount": 8
+    },
+    "arc-testnet-5042002-1b": {
+      "id": "arc-testnet-5042002-1b",
+      "chainId": 5042002,
+      "txHash": "0x97ac77d0b8eff40f995006008da276f27ee7497f5c705c0ec0eb96e228f7c7f0",
+      "from": "0x4a74f022893e3f1237ef530da2df1d9b4aff4772",
+      "recordedAt": "2026-11-07T06:50:16.475Z",
+      "status": 1,
+      "blockNumber": 71157867,
+      "gasUsed": 4180600,
+      "to": "0xa3a40fa2d82c0224c40b1ed7e07cb474b7d1468b",
+      "logsCount": 8
+    },
+    "base-8453": {
+      "id": "base-8453",
+      "chainId": 8453,
+      "txHash": "0x00bcd410f6055d95c61bdc8d6ef7d70d0ae1d8dcbc7b5f36c9af573ddd687dbd",
+      "from": "0x4a74f022893e3f1237ef530da2df1d9b4aff4772",
+      "recordedAt": "2026-11-07T06:53:44.266Z",
+      "status": 1,
+      "blockNumber": 54220240,
+      "gasUsed": 4858836,
+      "to": "0x9641d764fc13c8b624c04430c7356c1c7c8102e2",
+      "logsCount": 5
     }
   }
 }
