@@ -1,8 +1,12 @@
 ## 1. Summary
 
 - **Project name:** `spooky-contracts` (BUFI / Fantasmita Multi-Profile Solidity Audit Bundle)
-- **Date:** 2026-11-06
-- **Review level:** Max (`Critical`, `High`, `Medium`, `Low`, and `Informational` manual review + Slither 0.11.6 102-detector static analysis + Foundry unit/fuzz/invariant testing)
+- **Date:** 2026-11-07
+- **Review level:** Max (`Critical`, `High`, `Medium`, `Low`, and `Informational` manual review + Slither 0.11.6 102-detector static analysis + Foundry unit/fuzz/invariant testing + on-chain Safe `MultiSendCallOnly` deployment verification across Arc `5042`, Avalanche `43114`, Arc Testnet `5042002`, and Base `8453`)
+- **Instructions for Olympix Auditors:**
+  1. **Build all 10 Foundry profiles:** Run `./script/build-all.sh` (or `./script/build-all.sh --use solar`).
+  2. **Execute all 418 regression, fuzz, invariant, and Safe batch tests:** Run `./script/test-all.sh` (or `./script/test-all.sh --use solar`).
+  3. **Verify on-chain deployments (`57/57` live contracts across 12 transactions):** Inspect [`deployments/addresses.json`](./deployments/addresses.json), [`deployments/live-receipts-2026-11-07.json`](./deployments/live-receipts-2026-11-07.json), and [`deployments/safe-tx-builder/MANIFEST.json`](./deployments/safe-tx-builder/MANIFEST.json).
 - **Solidity compiler versions:**
   - `0.8.24` (`evm_version = "cancun"`, `optimizer_runs = 200`, `via_ir = true` on `treasury-v3` and `agent-policy`) for `default` (`packages/treasury-conduits/src`), `treasury-v3` (`packages/treasury-conduits/v3/src`), and `agent-policy` (`packages/agent-policy/src`)
   - `0.8.26` (`evm_version = "cancun"`, `optimizer_runs = 200`, `via_ir = true`) for `fx-hub`, `fx-spoke`, `fx-memo-v1`, `fx-stablefx`, `fx-cctp-forwarder`, and `fx-doc-registry` (`packages/fx-recibu/**/src`)
