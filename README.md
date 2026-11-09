@@ -13,7 +13,7 @@ Multi-profile Foundry monorepo of BUFI production Solidity contracts, remediated
    ./script/test-all.sh --use solar
    ```
 3. **On-Chain Deployment Artifacts & Safe Batches:**
-   - [`deployments/addresses.json`](./deployments/addresses.json) — Machine-readable registry of both legacy and post-remediation (`postRemediation20261106`) deterministic CREATE2 contract addresses across chains `5042`, `43114`, `5042002`, and `8453`, plus Safe execution receipts (`liveExecutionReceipts`).
+   - [`deployments/addresses.json`](./deployments/addresses.json) — Machine-readable registry of post-remediation (`spooky-contracts-prod-20261106`) deterministic CREATE2 contract addresses across chains `5042`, `43114`, `5042002`, and `8453`, plus Safe execution receipts (`liveExecutionReceipts`).
    - [`deployments/live-receipts-2026-11-07.json`](./deployments/live-receipts-2026-11-07.json) — Full RPC-verified receipt ledger (`txHash`, `blockNumber`, `gasUsed`, `status = 1`) and `eth_getCode` runtime byte sizes for all `57/57` live contract instances.
    - [`deployments/safe-tx-builder/MANIFEST.json`](./deployments/safe-tx-builder/MANIFEST.json) — Safe Transaction Builder v1.16.5 manifest mapping every `safe-*.json` batch to its deployed contracts and on-chain execution receipt.
    - [`deployments/bytecode-hashes.json`](./deployments/bytecode-hashes.json) — Creation and runtime bytecode hashes across all profiles.
@@ -54,21 +54,4 @@ All 57 remediated contract instances (`F-01` through `F-30`) are deployed determ
 | Arc Testnet (`5042002`) | `0xA3a40fa2d82C0224c40b1Ed7E07cb474B7D1468B` | `arc-testnet-5042002-1b` | `0x97ac77d0b8eff40f995006008da276f27ee7497f5c705c0ec0eb96e228f7c7f0` | `71157867` | `ClaimVaultDeployer` (`0x5BC58Ea1721A5976e68468b89019920b71C73CD5`), `PeanutV4` (`0x6bd53a40ff9b37543174553531C00C1c32E16B6b`), `PayrollBatch` (`0x60906130C29B3899b14b9EB04e8ca9F915Eb86E4`) |
 | Base Mainnet (`8453`) | `0x9641d764fc13c8B624c04430C7356C1C7C8102e2` | `base-8453` | `0x00bcd410f6055d95c61bdc8d6ef7d70d0ae1d8dcbc7b5f36c9af573ddd687dbd` | `54220240` | `CctpDepositForwarderImplementation` (`0x1612F9A755e833Daf626BFD6952deCE9a76BAf4C`), `CctpDepositForwarderFactory` (`0xf56Fe0bA9B9D951035f3422bb11D030D0c557AdF`), `ClaimVaultDeployer` (`0xE57695e4CE920eB24d80697c3369aE80fa275E6a`), `PeanutV4` (`0xeA06BF5AD08b70E4c107f3925CBC618662f88965`), `PayrollBatch` (`0xE9b96103Ddc1268F1184667F4c3E85Da75340E10`) |
 
-## Legacy Pre-Remediation Deployed Addresses (Reference)
-
-Chain 5042 is Arc mainnet. Chain 43114 is Avalanche C-Chain.
-
-| Contract | Arc 5042 | Avalanche 43114 | Match |
-| --- | --- | --- | --- |
-| TreasuryConduit | [`0xa9817049f0a48d4653719465a7829e85b3a415e7`](https://explorer.arc.io/address/0xa9817049f0a48d4653719465a7829e85b3a415e7) | [`0x49c89b198321ed0782a4f9a44de2b237ebd77cf0`](https://snowtrace.io/address/0x49c89b198321ed0782a4f9a44de2b237ebd77cf0) | exact |
-| TreasuryConduitPermit2 | [`0xb63da0934e2a89169f89eed0679c35cc4d5959a5`](https://explorer.arc.io/address/0xb63da0934e2a89169f89eed0679c35cc4d5959a5) | [`0xaebb9c395ab6d627eb0defc3b16e7f49dc30c19f`](https://snowtrace.io/address/0xaebb9c395ab6d627eb0defc3b16e7f49dc30c19f) | immutables |
-| TreasuryBridgeConduitV2 | [`0x41422093ef6d03fbd3c0a2e3a6a6f69b1cad4409`](https://explorer.arc.io/address/0x41422093ef6d03fbd3c0a2e3a6a6f69b1cad4409) | same address | exact |
-| TreasuryRedeemConduit | [`0x361340f0b3a8ec00067ea3c024ae6919a2a0d06a`](https://explorer.arc.io/address/0x361340f0b3a8ec00067ea3c024ae6919a2a0d06a) | — | immutables |
-| InvoiceShelf | [`0x8d3006f7be5b5e6e5b7709889a2e5d9ee4d3cd0a`](https://explorer.arc.io/address/0x8d3006f7be5b5e6e5b7709889a2e5d9ee4d3cd0a) | — | immutables |
-| WorkspaceTierRegistry | [`0xfe06281b464d53f00cceca504114263c689e56fe`](https://explorer.arc.io/address/0xfe06281b464d53f00cceca504114263c689e56fe) | — | immutables |
-| MultiTokenReceivableEscrow | [`0xbb4b6bbdaeb3136571d33742385a1ae59cee57ab`](https://explorer.arc.io/address/0xbb4b6bbdaeb3136571d33742385a1ae59cee57ab) | — | exact |
-| RecibuMemoRouter | [`0x208fbdf4268c87c475189d9ecd7d59b4766e75cb`](https://explorer.arc.io/address/0x208fbdf4268c87c475189d9ecd7d59b4766e75cb) | — | immutables |
-| SpokeMemoConduit | — | [`0x7b5b1425bb621b014b7257a0d0caf88c453e33c8`](https://snowtrace.io/address/0x7b5b1425bb621b014b7257a0d0caf88c453e33c8) | immutables |
-| MemoConduit v1 | [`0x516340a244132c62bedae5f886fd35845af16ba2`](https://explorer.arc.io/address/0x516340a244132c62bedae5f886fd35845af16ba2) | [`0x536268d0a6c32a7161ba146f5673dfcf13f1ffe2`](https://snowtrace.io/address/0x536268d0a6c32a7161ba146f5673dfcf13f1ffe2) | immutables |
-
-Arc factoring admin Safe: [`0x47Dc7D18A6E3a79F696714E7D47456a49B430D09`](https://explorer.arc.io/address/0x47Dc7D18A6E3a79F696714E7D47456a49B430D09). Avalanche and Arc Testnet owner Safe: [`0xa3A40fA2D82C0224c40b1eD7E07cB474B7D1468b`](https://snowtrace.io/address/0xa3a40fa2d82c0224c40b1ed7e07cb474b7d1468b). Safe implementations are not in the audit scope.
+Owner Safes: Arc Mainnet (`5042`) [`0x47Dc7D18A6E3a79F696714E7D47456a49B430D09`](https://explorer.arc.io/address/0x47Dc7D18A6E3a79F696714E7D47456a49B430D09), Avalanche (`43114`) and Arc Testnet (`5042002`) [`0xA3a40fa2d82C0224c40b1Ed7E07cb474B7D1468B`](https://snowtrace.io/address/0xa3a40fa2d82c0224c40b1ed7e07cb474b7d1468b), and Base Mainnet (`8453`) [`0x9641d764fc13c8B624c04430C7356C1C7C8102e2`](https://basescan.org/address/0x9641d764fc13c8B624c04430C7356C1C7C8102e2). Safe implementations are not in the audit scope.

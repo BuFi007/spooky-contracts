@@ -29,22 +29,26 @@ Testnet-only contracts were left out: BUFIOracle, InvoiceMemoRouter, InvoiceSett
 
 Comments inside `InvoiceShelf` still name Fantasmita, InvoiceMemoRouter, InvoiceSettlement, and BUFIOracle. Those comments are part of the deployed source and were not edited.
 
-## Deployed addresses
+## Deployed addresses (`spooky-contracts-prod-20261106`)
 
-| Contract | Chain | Address | Bytecode |
-| --- | --- | --- | --- |
-| InvoiceShelf | Arc 5042 | [`0x8d3006f7be5b5e6e5b7709889a2e5d9ee4d3cd0a`](https://explorer.arc.io/address/0x8d3006f7be5b5e6e5b7709889a2e5d9ee4d3cd0a) | immutables |
-| WorkspaceTierRegistry | Arc 5042 | [`0xfe06281b464d53f00cceca504114263c689e56fe`](https://explorer.arc.io/address/0xfe06281b464d53f00cceca504114263c689e56fe) | immutables |
-| MultiTokenReceivableEscrow | Arc 5042 | [`0xbb4b6bbdaeb3136571d33742385a1ae59cee57ab`](https://explorer.arc.io/address/0xbb4b6bbdaeb3136571d33742385a1ae59cee57ab) | exact |
-| RecibuMemoRouter | Arc 5042 | [`0x208fbdf4268c87c475189d9ecd7d59b4766e75cb`](https://explorer.arc.io/address/0x208fbdf4268c87c475189d9ecd7d59b4766e75cb) | immutables |
-| BUFIIdentityRegistry | Arc 5042 | [`0xe3d6de22135bbd463c0a97a5196782cbcc3f3322`](https://explorer.arc.io/address/0xe3d6de22135bbd463c0a97a5196782cbcc3f3322) | exact |
-| BUFIReputationRegistry | Arc 5042 | [`0x30015db351747e39102da3f65f51ce0207052415`](https://explorer.arc.io/address/0x30015db351747e39102da3f65f51ce0207052415) | immutables |
-| SpokeMemoConduit | Avalanche 43114 | [`0x7b5b1425bb621b014b7257a0d0caf88c453e33c8`](https://snowtrace.io/address/0x7b5b1425bb621b014b7257a0d0caf88c453e33c8) | immutables |
-| MemoConduit v1 | Avalanche 43114 | [`0x536268d0a6c32a7161ba146f5673dfcf13f1ffe2`](https://snowtrace.io/address/0x536268d0a6c32a7161ba146f5673dfcf13f1ffe2) | immutables |
-| MemoConduit v1 | Arc 5042 | [`0x516340a244132c62bedae5f886fd35845af16ba2`](https://explorer.arc.io/address/0x516340a244132c62bedae5f886fd35845af16ba2) | immutables |
-| CctpDepositForwarder | Base Sepolia 84532 | `0x23CCCf9e090937DF0F97f166DBF7302A94A653Ea` | exact (Sourcify) |
-| CctpDepositForwarderFactory | Base Sepolia 84532 | `0x4035b61123367428ECFd8D4f6FD2bd74e00038ec` | exact (Sourcify) |
+| Contract | Arc Mainnet (`5042`) | Avalanche C-Chain (`43114`) | Arc Testnet (`5042002`) | Base Mainnet (`8453`) |
+| --- | --- | --- | --- | --- |
+| `BUFIIdentityRegistry` | `0x6730b8f3FF0eF85E097Af01eC8a3e450d30e466d` | — | `0x7c8E88d157d10F3fEEbBE7e83aEE5D34284eA646` | — |
+| `BUFIReputationRegistry` | `0x2D7125b1cf826bE4ad6D0b043F6B4675897EB2e9` | — | `0x05845d05212650C50f823A0a98D0B96fA937e582` | — |
+| `WorkspaceTierRegistry` | `0x9a3029Be2323695647A24DD2aB6014887E04A4C7` | — | `0xbAAADc50b9E4f8831807D0B5aF43B21061731572` | — |
+| `WorkspaceOperatingReserve` | `0x9075121f006CC0646bf1799993AC29B4aBF096f4` | — | `0x04aD093691f79F3859dD5fb3e08fD92EB1a2F5D4` | — |
+| `InvoiceShelf` | `0x90eCDd402C0E357362b7805173191A153b876DF4` | — | `0xa954C9D612155A2e7d06b575B8A559fA340c02bE` | — |
+| `BINV` | `0xd692453558A92C712b74cFad13C0b769F4AC3037` | — | `0xbc0E603A3c5267aF35a2EebA2a0bC4278eD0B5f1` | — |
+| `BIFTranche` (`bIF-A` / `bIF-B` / `bIF-C`) | `0xE295…aA8e` / `0xbA43…773c` / `0x0621…07f5` | — | `0x9C1a…4D47` / `0x3293…c743` / `0x348D…42bc` | — |
+| `MultiTokenReceivableEscrow` | `0x4772d02a36cfBfF5c139C8d3b5F2DACc82FFAE96` | — | `0x9eD55A70580B1C34F1f0206bd0A9559D53e0cEB1` | — |
+| `RecibuMemoRouter` | `0x652D1eD9c519bf7582bFE55AEB504De3f48B7545` | — | `0x53d72094B1b15578f24d778e0F89aB1e8f98a6fA` | — |
+| `SpokeMemoConduit` | — | `0x273B51467f3e84eda3B443a2Ee81cafD4622f775` | `0x3170d693B50B420e61A20737c66F7166B9f4bF0d` | — |
+| `MemoConduit` (CCTP) | `0x0f531Cf6E1F54585Db080d51c9a0B32C9b89a684` | `0x52Dd9c372C6ea4afB29747f49436F628A1f21E32` | `0xf31E0557505deb66B31571591cAacAbcD7D6AD71` | — |
+| `MemoConduit` v1 | `0x5730E6E727B6e476bf243dFeab64A8E7dCC00009` | `0x7c8E88d157d10F3fEEbBE7e83aEE5D34284eA646` | `0x6a099C8A2838219337313d15D5D736F50F900f29` | — |
+| `DocumentReceivableRegistry` | `0x7B5a94C59313371BDD3CffA8c165D7fb1C31423C` | — | `0x4955cb7B853860a40F075957C30513257210EDB3` | — |
+| `CctpDepositForwarder` (impl) | `0x1612F9A755e833Daf626BFD6952deCE9a76BAf4C` | `0x1612F9A755e833Daf626BFD6952deCE9a76BAf4C` | `0x1612F9A755e833Daf626BFD6952deCE9a76BAf4C` | `0x1612F9A755e833Daf626BFD6952deCE9a76BAf4C` |
+| `CctpDepositForwarderFactory` | `0x4de4E8c8a15809264Db7AA4DcE0746b2d405edfC` | `0x47Be2882B335Eba84C3908a2f01705cb09d296CA` | `0xEcbe7DC7db6fD6193F83C0B38ccd420e327a56aD` | `0xf56Fe0bA9B9D951035f3422bb11D030D0c557AdF` |
 
-`BINV`, `BIFTranche`, `WorkspaceOperatingReserve`, `Params`, `ReceivableCommitment`, and `FactoringEvidenceV1` are in the hub compile because `InvoiceShelf` imports them. The bytecode check covers the contracts that were found as their own mainnet deployments.
+Full addresses and Safe execution receipts are recorded in [`../../deployments/addresses.json`](../../deployments/addresses.json).
 
 Foundry profiles, from the repository root: `fx-hub`, `fx-spoke`, `fx-memo-v1`, `fx-stablefx`, `fx-cctp-forwarder`, `fx-doc-registry`.

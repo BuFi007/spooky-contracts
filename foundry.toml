@@ -4,10 +4,8 @@
 # deployment keeps the OpenZeppelin sources it was verified with.
 # Build every profile with `./script/build-all.sh`.
 #
-# `forge build` from this root uses source-unit names under packages/, so the
-# metadata suffix differs from mainnet. Bytecode equality is
-# `python3 script/verify_bytecode.py`, which replays the verified solc
-# standard-json (including the original remapping list).
+# `python3 script/verify_bytecode.py` verifies `deployments/bytecode-hashes.json`,
+# `deployments/addresses.json`, and `deployments/safe-tx-builder/MANIFEST.json`.
 
 [profile.default]
 src = "packages/treasury-conduits/src"
