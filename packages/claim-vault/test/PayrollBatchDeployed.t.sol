@@ -5,8 +5,31 @@ import {Vm} from "forge-std/Vm.sol";
 
 import {PayrollBatch} from "../src/payroll/PayrollBatch.sol";
 import {ISignatureTransfer} from "../src/interfaces/ISignatureTransfer.sol";
+import {IPeanutV4MFAVault} from "../src/interfaces/IPeanutV4MFAVault.sol";
 import {PBToken, MockTreasury1271} from "./PayrollBatch.t.sol";
 import {ClaimSigs} from "./utils/ClaimSigs.sol";
+
+/// @notice ABI of the historical Arc testnet PayrollBatch fixture etched below (pre-5.2.14 3-arg witnessOf).
+interface ILegacyPayrollBatch {
+    function PERMIT2() external view returns (ISignatureTransfer);
+    function VAULT() external view returns (IPeanutV4MFAVault);
+    function MAX_LINES() external view returns (uint256);
+    function WITNESS_TYPE_STRING() external view returns (string memory);
+    function payrollExecuted(address from, bytes32 payrollId) external view returns (bool);
+    function witnessOf(
+        bytes32 payrollId,
+        PayrollBatch.Payout[] calldata payouts,
+        PayrollBatch.ClaimDeposit[] calldata claims
+    ) external view returns (bytes32);
+    function executePayroll(
+        ISignatureTransfer.PermitBatchTransferFrom calldata permit,
+        address from,
+        bytes calldata signature,
+        bytes32 payrollId,
+        PayrollBatch.Payout[] calldata payouts,
+        PayrollBatch.ClaimDeposit[] calldata claims
+    ) external;
+}
 
 /// @notice Plan 386 Phase 0 measurements, run against the DEPLOYED Arc testnet bytecode
 ///         (`test/fixtures/payroll-batch.arc-testnet.runtime.hex`, etched at its own address)
@@ -23,7 +46,7 @@ import {ClaimSigs} from "./utils/ClaimSigs.sol";
 contract PayrollBatchDeployedTest is ClaimSigs {
     uint256 constant ARC_TESTNET = 5042002;
     ISignatureTransfer constant PERMIT2 = ISignatureTransfer(0x000000000022D473030F116dDEE9F6B43aC78BA3);
-    PayrollBatch constant BATCH = PayrollBatch(0x8f4e4d47C0D4F8bF3AAeAcC31C9Cd425476B30C5);
+    ILegacyPayrollBatch constant BATCH = ILegacyPayrollBatch(0x8f4e4d47C0D4F8bF3AAeAcC31C9Cd425476B30C5);
     address constant DEPLOYED_VAULT = 0xb96Cc197F4b15DA762e4c34E1413CECa57FaC4fC;
     bytes32 constant TOKEN_PERMISSIONS_TYPEHASH = keccak256("TokenPermissions(address token,uint256 amount)");
     bytes32 constant PAYOUT_TOPIC = keccak256("PayrollPayout(bytes32,address,address,uint256)");

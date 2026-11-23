@@ -115,7 +115,7 @@ contract ArcMainnetWfxForkTest is PayrollPermit2 {
         returns (ISignatureTransfer.PermitBatchTransferFrom memory permit, bytes memory sig)
     {
         permit = _oneTokenPermit(address(wfx), total);
-        sig = _signPayroll(batch, permit, id, p, c, quorumPk);
+        sig = _signPayroll(batch, permit, address(treasury), id, p, c, quorumPk);
     }
 
     // ------------------------------------------------------------------ deploy + token facts
@@ -176,7 +176,7 @@ contract ArcMainnetWfxForkTest is PayrollPermit2 {
         PayrollBatch.Payout[] memory none = new PayrollBatch.Payout[](0);
         PayrollBatch.ClaimDeposit[] memory c = _claim(address(wfx), vm.addr(linkPk), 9e18);
         ISignatureTransfer.PermitBatchTransferFrom memory permit = _oneTokenPermit(address(wfx), 9e18);
-        bytes memory sig = _signPayroll(rogue, permit, "ret", none, c, quorumPk);
+        bytes memory sig = _signPayroll(rogue, permit, address(treasury), "ret", none, c, quorumPk);
         vm.expectRevert(abi.encodeWithSelector(PayrollBatch.Retained.selector, address(wfx)));
         rogue.executePayroll(permit, address(treasury), sig, "ret", none, c);
         assertEq(wfx.balanceOf(address(treasury)), FUND);

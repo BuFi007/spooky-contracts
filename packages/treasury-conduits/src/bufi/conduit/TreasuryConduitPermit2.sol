@@ -71,7 +71,6 @@ contract TreasuryConduitPermit2 is TreasuryConduit {
     error Permit2RouteNotRegistered();
     error RecipientNotInAddressBook();
     error InexactInput();
-    error PriorBalanceConsumed();
     error InexactOutput();
     error AllowanceMismatch(address token, address spender, uint256 expected, uint256 actual);
 
@@ -123,10 +122,10 @@ contract TreasuryConduitPermit2 is TreasuryConduit {
         Permit2Intent calldata intent
     ) external nonReentrant {
         if (
-            treasury.code.length == 0 || intent.operationId == bytes32(0) || intent.amountIn == 0 || intent.minOut == 0
-                || intent.recipient == address(0) || intent.recipient == address(this)
-                || intent.tokenIn == intent.tokenOut || intent.tokenIn.code.length == 0
-                || intent.tokenOut.code.length == 0
+            treasury == address(this) || treasury.code.length == 0 || intent.operationId == bytes32(0)
+                || intent.amountIn == 0 || intent.minOut == 0 || intent.recipient == address(0)
+                || intent.recipient == address(this) || intent.tokenIn == intent.tokenOut
+                || intent.tokenIn.code.length == 0 || intent.tokenOut.code.length == 0
         ) revert InvalidPermit2Intent();
         if (executed[treasury][intent.operationId]) revert OperationAlreadyExecuted();
         if (permit.permitted.token != intent.tokenIn) revert TokenMismatch(intent.tokenIn, permit.permitted.token);
@@ -136,6 +135,10 @@ contract TreasuryConduitPermit2 is TreasuryConduit {
         if (permit.deadline != intent.deadline) revert Permit2DeadlineMismatch();
         if (block.timestamp > intent.deadline) revert IntentExpired(intent.deadline, block.timestamp);
         if (!permit2Routes[intent.target][intent.allowanceTarget]) revert Permit2RouteNotRegistered();
+        if (
+            intent.target == intent.tokenIn || intent.target == intent.tokenOut || intent.target == address(this)
+                || intent.target == address(permit2)
+        ) revert InvalidPermit2Intent();
         if (intent.documentCommitment == bytes32(0)) {
             if (intent.recipient != treasury) revert BeneficiaryMismatch(intent.recipient, treasury);
         } else if (!_isAllowedRecipient(treasury, intent.recipient)) {
@@ -147,7 +150,6 @@ contract TreasuryConduitPermit2 is TreasuryConduit {
         uint256 inputBefore = tokenIn.balanceOf(address(this));
         uint256 outputBefore = tokenOut.balanceOf(address(this));
         uint256 treasuryInputBefore = tokenIn.balanceOf(treasury);
-        uint256 recipientBefore = tokenOut.balanceOf(intent.recipient);
         bytes32 intentHash = permit2IntentHash(treasury, intent);
         executed[treasury][intent.operationId] = true;
 
@@ -180,19 +182,16 @@ contract TreasuryConduitPermit2 is TreasuryConduit {
             tokenIn.safeTransfer(treasury, refund);
             if (tokenIn.balanceOf(treasury) != treasuryBeforeRefund + refund) revert InexactInput();
         }
-        if (outputAfter > outputBefore) {
-            uint256 proceeds = outputAfter - outputBefore;
-            uint256 recipientBeforeForward = tokenOut.balanceOf(intent.recipient);
-            tokenOut.safeTransfer(intent.recipient, proceeds);
-            if (tokenOut.balanceOf(intent.recipient) != recipientBeforeForward + proceeds) revert InexactOutput();
-        }
+        uint256 proceeds = outputAfter - outputBefore;
+        if (proceeds < intent.minOut) revert BelowFloor(proceeds, intent.minOut);
+        uint256 recipientBefore = tokenOut.balanceOf(intent.recipient);
+        tokenOut.safeTransfer(intent.recipient, proceeds);
+        uint256 recipientAfter = tokenOut.balanceOf(intent.recipient);
+        if (recipientAfter != recipientBefore + proceeds) revert InexactOutput();
         if (tokenIn.balanceOf(address(this)) != inputBefore || tokenOut.balanceOf(address(this)) != outputBefore) {
             revert InexactOutput();
         }
-        uint256 recipientAfter = tokenOut.balanceOf(intent.recipient);
-        if (recipientAfter < recipientBefore) revert BelowFloor(0, intent.minOut);
         uint256 received = recipientAfter - recipientBefore;
-        if (received < intent.minOut) revert BelowFloor(received, intent.minOut);
 
         emit Permit2Executed(
             treasury,

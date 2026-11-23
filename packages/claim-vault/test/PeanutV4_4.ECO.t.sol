@@ -67,4 +67,11 @@ contract PeanutV44ECOTest is ClaimSigs {
         assertEq(eco.balanceOf(recipient), 0);
         assertEq(eco.balanceOf(address(vault)), 0);
     }
+
+    function test_ECOConstructorStoresAddressAndRejectsType1Deposit() public {
+        assertEq(vault.ecoAddress(), address(eco));
+        vm.prank(sender);
+        vm.expectRevert("ECO DEPOSITS MUST USE _contractType 4");
+        vault.makeDeposit(address(eco), 1, AMOUNT, 0, vm.addr(LINK_PK));
+    }
 }

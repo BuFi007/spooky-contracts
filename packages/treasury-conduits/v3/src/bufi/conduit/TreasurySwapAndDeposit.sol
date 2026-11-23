@@ -21,9 +21,13 @@ interface IAaveV3Pool {
  *
  * The conduit pulls `tokenIn`, `forceApprove`s this contract, and calls `run`.
  * Swap proceeds land here (the quote's receiver MUST be this address), then
- * `deposit` / `supply` mint to `beneficiary` from the live USDC balance — never
- * from the pre-swap `amountIn`. Leftover `tokenIn` and USDC go back to the
- * conduit so its sweep + share `minOut` still hold.
+ * `deposit` / `supply` mint to `beneficiary` from this call's USDC balance
+ * delta only — prior/stray `tokenIn` and USDC balances on this contract are
+ * preserved untouched. When calling `TreasurySwapAndDeposit` via
+ * `TreasuryConduit`, sign `beneficiary = address(conduit)` because
+ * `TreasuryConduit` requires `tokenOut` proceeds to be delivered to the
+ * conduit before forwarding them to `auth.from`. Per-call leftover `tokenIn`
+ * and USDC return to `msg.sender`.
  */
 contract TreasurySwapAndDeposit is Ownable2Step, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -40,8 +44,14 @@ contract TreasurySwapAndDeposit is Ownable2Step, ReentrancyGuard {
 
     event VenueSet(address indexed venue, bool allowed);
     event DestSet(address indexed dest, bool allowed);
+    event Rescued(address indexed token, address indexed to, uint256 amount);
 
     error ZeroAddress();
+    error ZeroAmount();
+    error NothingToSweep();
+    error InexactPull();
+    error PriorBalanceConsumed();
+    error InvalidTarget();
 
     error RenounceDisabled();
     error VenueNotRegistered(address venue);
@@ -75,6 +85,14 @@ contract TreasurySwapAndDeposit is Ownable2Step, ReentrancyGuard {
         emit DestSet(dest, allowed);
     }
 
+    function rescue(address token, address to) external onlyOwner nonReentrant {
+        if (token == address(0) || to == address(0)) revert ZeroAddress();
+        uint256 amount = IERC20(token).balanceOf(address(this));
+        if (amount == 0) revert NothingToSweep();
+        emit Rescued(token, to, amount);
+        IERC20(token).safeTransfer(to, amount);
+    }
+
     function run(
         address tokenIn,
         uint256 amountIn,
@@ -86,39 +104,53 @@ contract TreasurySwapAndDeposit is Ownable2Step, ReentrancyGuard {
         uint256 minUsdc
     ) external nonReentrant {
         if (beneficiary == address(0) || tokenIn == address(0)) revert ZeroAddress();
+        if (amountIn == 0) revert ZeroAmount();
         if (!dests[dest]) revert DestNotRegistered(dest);
 
-        IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
+        IERC20 inToken = IERC20(tokenIn);
+        IERC20 usdc = IERC20(USDC);
+        uint256 inBefore = inToken.balanceOf(address(this));
+        uint256 usdcBefore = tokenIn == USDC ? inBefore : usdc.balanceOf(address(this));
+
+        inToken.safeTransferFrom(msg.sender, address(this), amountIn);
+        if (inToken.balanceOf(address(this)) != inBefore + amountIn) revert InexactPull();
 
         if (tokenIn != USDC) {
             if (swapTarget == address(0) || !venues[swapTarget]) revert VenueNotRegistered(swapTarget);
+            if (swapTarget == tokenIn || swapTarget == USDC || swapTarget == address(this)) revert InvalidTarget();
             if (swapData.length == 0) revert SwapRequired();
-            IERC20(tokenIn).forceApprove(swapTarget, amountIn);
+            inToken.forceApprove(swapTarget, amountIn);
             (bool ok, bytes memory ret) = swapTarget.call(swapData);
-            IERC20(tokenIn).forceApprove(swapTarget, 0);
+            inToken.forceApprove(swapTarget, 0);
             if (!ok) revert SwapFailed(ret);
         } else if (swapTarget != address(0) || swapData.length != 0) {
             revert UnexpectedSwap();
         }
 
-        uint256 usdcBal = IERC20(USDC).balanceOf(address(this));
-        if (usdcBal < minUsdc) revert BelowUsdcFloor(usdcBal, minUsdc);
+        uint256 usdcAfterSwap = usdc.balanceOf(address(this));
+        if (usdcAfterSwap < usdcBefore) revert PriorBalanceConsumed();
+        uint256 usdcToDeposit = usdcAfterSwap - usdcBefore;
+        if (usdcToDeposit < minUsdc) revert BelowUsdcFloor(usdcToDeposit, minUsdc);
 
-        IERC20(USDC).forceApprove(dest, usdcBal);
+        usdc.forceApprove(dest, usdcToDeposit);
         if (destKind == DestKind.Vault4626) {
-            uint256 shares = IERC4626Deposit(dest).deposit(usdcBal, beneficiary);
+            uint256 shares = IERC4626Deposit(dest).deposit(usdcToDeposit, beneficiary);
             if (shares == 0) revert ZeroShares();
         } else {
-            IAaveV3Pool(dest).supply(USDC, usdcBal, beneficiary, 0);
+            IAaveV3Pool(dest).supply(USDC, usdcToDeposit, beneficiary, 0);
         }
-        IERC20(USDC).forceApprove(dest, 0);
+        usdc.forceApprove(dest, 0);
 
-        _sweep(IERC20(tokenIn), msg.sender);
-        if (tokenIn != USDC) _sweep(IERC20(USDC), msg.sender);
-    }
+        uint256 inAfter = inToken.balanceOf(address(this));
+        if (inAfter < inBefore) revert PriorBalanceConsumed();
+        uint256 inRefund = inAfter - inBefore;
+        if (inRefund > 0) inToken.safeTransfer(msg.sender, inRefund);
 
-    function _sweep(IERC20 token, address to) private {
-        uint256 amount = token.balanceOf(address(this));
-        if (amount > 0) token.safeTransfer(to, amount);
+        if (tokenIn != USDC) {
+            uint256 usdcAfter = usdc.balanceOf(address(this));
+            if (usdcAfter < usdcBefore) revert PriorBalanceConsumed();
+            uint256 usdcRefund = usdcAfter - usdcBefore;
+            if (usdcRefund > 0) usdc.safeTransfer(msg.sender, usdcRefund);
+        }
     }
 }

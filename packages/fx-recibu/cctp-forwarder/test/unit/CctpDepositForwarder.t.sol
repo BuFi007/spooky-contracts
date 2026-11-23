@@ -7,6 +7,7 @@ import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/Reentrancy
 
 import {CctpDepositForwarder} from "../../src/rails/cctp/CctpDepositForwarder.sol";
 import {CctpDepositForwarderFactory} from "../../src/rails/cctp/CctpDepositForwarderFactory.sol";
+import {ITokenMessengerV2} from "../../src/interfaces/ITokenMessengerV2.sol";
 import {MockForwarderUSDC as MockUSDC} from "../mocks/MockForwarderUSDC.sol";
 import {MockTokenMessengerV2} from "../mocks/MockTokenMessengerV2.sol";
 
@@ -201,12 +202,17 @@ contract CctpDepositForwarderTest is Test {
         assertEq(fee, 0, "1 unit at 100 bps must give fee=0 (clamp)");
     }
 
-    function test_feeMath_roundingUp() public {
-        // 10001 at 1 bps => ceil(10001/10000) = 2
+    function test_feeMath_roundingDown() public {
+        // 10001 at 1 bps => floor(10001 / 10000) = 1
         CctpDepositForwarder fwd = _deploy(DOMAIN_ARC, RECIPIENT, CALLER_B32, 1, keccak256("rc2"));
         _fund(address(fwd), 10001);
         (, uint256 fee) = fwd.flush(true);
-        assertEq(fee, 2, "ceil rounding");
+        assertEq(fee, 1, "floor rounding");
+
+        // 9999 at 1 bps => floor(9999 / 10000) = 0
+        _fund(address(fwd), 9999);
+        (, uint256 subUnitFee) = fwd.flush(true);
+        assertEq(subUnitFee, 0, "sub-unit floor rounding");
     }
 
     function test_feeMath_exactDivisible() public {
@@ -227,9 +233,9 @@ contract CctpDepositForwarderTest is Test {
 
         (, uint256 fee) = fwd.flush(true);
         assertLt(fee, amount, "maxFee must be strictly < amount");
-        uint256 expected = (amount * bps + 9_999) / 10_000; // independent ceil
+        uint256 expected = (amount * bps) / 10_000; // independent floor
         if (expected >= amount) expected = amount - 1;
-        assertEq(fee, expected, "maxFee != min(ceil(amount*bps/1e4), amount-1)");
+        assertEq(fee, expected, "maxFee != min(floor(amount*bps/1e4), amount-1)");
         assertEq(messenger.getCall(0).maxFee, expected, "recorded maxFee");
     }
 
@@ -484,7 +490,8 @@ contract CctpDepositForwarderTest is Test {
     // -------------------------------------------------------------------------
 
     function testFuzz_configRoundTrip(bytes32 recipient, bytes32 caller_, uint16 bps, bytes32 doc) public {
-        vm.assume(recipient != 0 && doc != 0);
+        recipient = bytes32(uint256(uint160(uint256(recipient))));
+        vm.assume(recipient != bytes32(0) && doc != bytes32(0));
         caller_ = bytes32(uint256(uint160(uint256(caller_))));
         bps = uint16(bound(bps, 0, 100));
         uint32 domain = (uint256(doc) % 2 == 0) ? DOMAIN_AVALANCHE : DOMAIN_ARC;
@@ -550,7 +557,8 @@ contract CctpDepositForwarderTest is Test {
     // -------------------------------------------------------------------------
 
     function testFuzz_predictNeverZero(bytes32 recipient, bytes32 caller_, uint16 bps, bytes32 doc) public view {
-        vm.assume(recipient != 0 && doc != 0);
+        recipient = bytes32(uint256(uint160(uint256(recipient))));
+        vm.assume(recipient != bytes32(0) && doc != bytes32(0));
         caller_ = bytes32(uint256(uint160(uint256(caller_))));
         bps = uint16(bound(bps, 0, 100));
         uint32 domain = (uint256(doc) % 2 == 0) ? DOMAIN_AVALANCHE : DOMAIN_ARC;
@@ -578,9 +586,10 @@ contract CctpDepositForwarderTest is Test {
         for (uint256 i = 0; i < logs.length; i++) {
             if (logs[i].topics[0] == flushedSig) {
                 found = true;
-                (uint256 logAmt,, uint256 logFee, uint32 logDomain, bytes32 logRecipient, bytes32 logDoc) =
+                (uint256 logAmt, bool logFast, uint256 logFee, uint32 logDomain, bytes32 logRecipient, bytes32 logDoc) =
                     abi.decode(logs[i].data, (uint256, bool, uint256, uint32, bytes32, bytes32));
                 assertEq(logAmt, amount, "log amount");
+                assertTrue(logFast, "log fast");
                 assertEq(logDomain, DOMAIN_AVALANCHE, "log domain");
                 assertEq(logRecipient, RECIPIENT, "log recipient");
                 assertEq(logDoc, COMMITMENT, "log commitment");
@@ -628,6 +637,7 @@ contract CctpDepositForwarderTest is Test {
         bytes32 doc,
         bool arc
     ) public view {
+        recipient = bytes32(uint256(uint160(uint256(recipient))));
         vm.assume(recipient != bytes32(0) && doc != bytes32(0));
         caller_ = bytes32(uint256(uint160(uint256(caller_))));
         bps = uint16(bound(bps, 0, 100));
@@ -670,7 +680,7 @@ contract CctpDepositForwarderTest is Test {
         assertEq(c.mintRecipient, RECIPIENT);
         assertEq(c.destinationDomain, DOMAIN_ARC);
         assertEq(c.amount, 1_000e6);
-        assertEq(c.maxFee, 1e6); // ceil(1000e6 * 10 / 1e4)
+        assertEq(c.maxFee, 1e6); // floor(1000e6 * 10 / 1e4)
     }
 
     // -------------------------------------------------------------------------
@@ -754,7 +764,7 @@ contract CctpDepositForwarderTest is Test {
         uint256 q = fwd.quoteMaxFee(amount, true);
         if (amount == 0) assertEq(q, 0);
         else assertLt(q, amount);
-        assertEq(fwd.quoteMaxFee(type(uint256).max, true), type(uint256).max / 100 + 1);
+        assertEq(fwd.quoteMaxFee(type(uint256).max, true), type(uint256).max / 100);
         assertEq(fwd.quoteMaxFee(amount, false), 0);
     }
 
@@ -819,5 +829,243 @@ contract CctpDepositForwarderTest is Test {
         fwd.flush(true);
         assertEq(usdc.allowance(address(fwd), address(messenger)), 0);
         assertEq(usdc.balanceOf(address(fwd)), 0);
+    }
+
+    // -------------------------------------------------------------------------
+    // 36. BugPoCer remediation regression tests (5.1.16, 5.2.9, 5.2.11)
+    // -------------------------------------------------------------------------
+
+    function test_BugPoCer_5_1_16_chunkedFlushUpToCannotBypassMaxFastFeeBps() public {
+        uint16 bps = 1; // 0.01%
+        CctpDepositForwarder fwd = _deploy(DOMAIN_AVALANCHE, RECIPIENT, CALLER_B32, bps, keccak256("bugpocer-5-1-16"));
+        _fund(address(fwd), 10_000);
+
+        uint256 totalBurned;
+        uint256 totalMaxFee;
+        for (uint256 i = 0; i < 50; i++) {
+            (uint256 amt, uint256 fee) = fwd.flushUpTo(2, true);
+            totalBurned += amt;
+            totalMaxFee += fee;
+        }
+        (uint256 remAmt, uint256 remFee) = fwd.flushUpTo(9_900, true);
+        totalBurned += remAmt;
+        totalMaxFee += remFee;
+
+        assertEq(totalBurned, 10_000);
+        assertLe(totalMaxFee, (totalBurned * bps) / 10_000, "chunked flushUpTo exceeded cumulative bps cap");
+        assertEq(totalMaxFee, 0, "sub-10_000 chunks at 1 bps must floor to 0");
+
+        _fund(address(fwd), 25_000);
+        (uint256 c1Amt, uint256 c1Fee) = fwd.flushUpTo(12_500, true);
+        (uint256 c2Amt, uint256 c2Fee) = fwd.flushUpTo(12_500, true);
+        assertEq(c1Amt + c2Amt, 25_000);
+        assertEq(c1Fee, 1);
+        assertEq(c2Fee, 1);
+        assertLe(c1Fee + c2Fee, (25_000 * bps) / 10_000);
+    }
+
+    function test_BugPoCer_5_2_9_factoryRejectsNonCanonicalMintRecipient() public {
+        bytes32 highBitRecipient = bytes32(uint256(1) << 255) | RECIPIENT;
+        bytes32 boundaryDirtyRecipient = bytes32(uint256(1) << 160);
+        bytes memory expectedHighBitErr =
+            abi.encodeWithSelector(CctpDepositForwarderFactory.NonCanonicalMintRecipient.selector, highBitRecipient);
+        bytes memory expectedBoundaryErr = abi.encodeWithSelector(
+            CctpDepositForwarderFactory.NonCanonicalMintRecipient.selector, boundaryDirtyRecipient
+        );
+
+        vm.expectRevert(expectedHighBitErr);
+        factory.predict(DOMAIN_AVALANCHE, highBitRecipient, CALLER_B32, BPS, COMMITMENT);
+
+        vm.expectRevert(expectedHighBitErr);
+        factory.deploy(DOMAIN_AVALANCHE, highBitRecipient, CALLER_B32, BPS, COMMITMENT);
+
+        vm.expectRevert(expectedHighBitErr);
+        factory.deployAndFlush(DOMAIN_AVALANCHE, highBitRecipient, CALLER_B32, BPS, COMMITMENT, true);
+
+        vm.expectRevert(expectedHighBitErr);
+        factory.predictCallerRestricted(DOMAIN_AVALANCHE, highBitRecipient, CALLER_B32, BPS, COMMITMENT);
+
+        vm.expectRevert(expectedHighBitErr);
+        factory.deployCallerRestricted(DOMAIN_AVALANCHE, highBitRecipient, CALLER_B32, BPS, COMMITMENT);
+
+        vm.expectRevert(expectedBoundaryErr);
+        factory.predict(DOMAIN_ARC, boundaryDirtyRecipient, CALLER_B32, BPS, COMMITMENT);
+
+        vm.expectRevert(expectedBoundaryErr);
+        factory.deploy(DOMAIN_ARC, boundaryDirtyRecipient, CALLER_B32, BPS, COMMITMENT);
+
+        // Max canonical 20-byte address (bit 159 set, upper 96 bits zero) must succeed.
+        bytes32 maxCanonical = bytes32(uint256(type(uint160).max));
+        address predicted = factory.predict(DOMAIN_ARC, maxCanonical, CALLER_B32, BPS, COMMITMENT);
+        address deployed = factory.deploy(DOMAIN_ARC, maxCanonical, CALLER_B32, BPS, COMMITMENT);
+        assertEq(deployed, predicted);
+    }
+
+    function test_BugPoCer_5_2_11_zeroFeeBpsForcesStandardFinalityThreshold() public {
+        CctpDepositForwarder fwd = _deploy(DOMAIN_AVALANCHE, RECIPIENT, CALLER_B32, 0, keccak256("bugpocer-5-2-11"));
+        _fund(address(fwd), 1_000e6);
+
+        bytes32 flushedSig = keccak256("Flushed(uint256,bool,uint256,uint32,bytes32,bytes32)");
+
+        vm.recordLogs();
+        (uint256 amt1, uint256 fee1) = fwd.flushUpTo(400e6, true);
+        Vm.Log[] memory logs1 = vm.getRecordedLogs();
+        assertEq(amt1, 400e6);
+        assertEq(fee1, 0);
+        MockTokenMessengerV2.BurnCall memory call1 = messenger.getCall(0);
+        assertEq(
+            call1.minFinalityThreshold, fwd.STANDARD_FINALITY_THRESHOLD(), "flushUpTo must force standard threshold"
+        );
+        assertEq(call1.maxFee, 0);
+        _assertFlushedFastFlag(logs1, flushedSig, false, 0);
+
+        vm.recordLogs();
+        (uint256 amt2, uint256 fee2) = fwd.flush(true);
+        Vm.Log[] memory logs2 = vm.getRecordedLogs();
+        assertEq(amt2, 600e6);
+        assertEq(fee2, 0);
+        MockTokenMessengerV2.BurnCall memory call2 = messenger.getCall(1);
+        assertEq(call2.minFinalityThreshold, fwd.STANDARD_FINALITY_THRESHOLD(), "flush must force standard threshold");
+        assertEq(call2.maxFee, 0);
+        _assertFlushedFastFlag(logs2, flushedSig, false, 0);
+    }
+
+    // -------------------------------------------------------------------------
+    // 37. Mutation-hardening tests for CctpDepositForwarder
+    // -------------------------------------------------------------------------
+
+    function test_mutation_maxFastFeeBpsCapConstant() public view {
+        assertEq(impl.MAX_FAST_FEE_BPS_CAP(), 100);
+        assertEq(factory.MAX_FAST_FEE_BPS_CAP(), 100);
+    }
+
+    function test_mutation_reentrantFlushUpTo_reverts_fundsStay() public {
+        OneShotReentrantMessenger reentrantMessenger = new OneShotReentrantMessenger();
+        CctpDepositForwarderFactory localFactory =
+            new CctpDepositForwarderFactory(address(impl), address(usdc), address(reentrantMessenger));
+        CctpDepositForwarder fwd =
+            CctpDepositForwarder(localFactory.deploy(DOMAIN_AVALANCHE, RECIPIENT, CALLER_B32, BPS, COMMITMENT));
+        _fund(address(fwd), 10e6);
+
+        vm.expectRevert(ReentrancyGuardTransient.ReentrancyGuardReentrantCall.selector);
+        fwd.flushUpTo(5e6, true);
+
+        assertEq(usdc.balanceOf(address(fwd)), 10e6);
+        assertEq(reentrantMessenger.callCount(), 0);
+    }
+
+    function test_mutation_impl_flushUpTo_notAClone() public {
+        vm.expectRevert(CctpDepositForwarder.NotAClone.selector);
+        impl.flushUpTo(0, false);
+
+        vm.expectRevert(CctpDepositForwarder.NotAClone.selector);
+        impl.flushUpTo(1, false);
+    }
+
+    function test_mutation_impl_quoteMaxFeeStandard_notAClone() public {
+        vm.expectRevert(CctpDepositForwarder.NotAClone.selector);
+        impl.quoteMaxFee(1e6, false);
+    }
+
+    function test_mutation_overBurn_BalanceNotBurned_fundsStay() public {
+        OverBurnUSDC overBurnToken = new OverBurnUSDC();
+        CctpDepositForwarderFactory localFactory =
+            new CctpDepositForwarderFactory(address(impl), address(overBurnToken), address(messenger));
+        CctpDepositForwarder fwd =
+            CctpDepositForwarder(localFactory.deploy(DOMAIN_AVALANCHE, RECIPIENT, CALLER_B32, BPS, COMMITMENT));
+
+        overBurnToken.mint(address(fwd), 100e6);
+        overBurnToken.setBurnExtraOnTransferFrom(true);
+
+        // Allowance is fully consumed while balance drops below expectedRemaining (50e6 - 1 < 50e6).
+        vm.expectRevert(CctpDepositForwarder.BalanceNotBurned.selector);
+        fwd.flushUpTo(50e6, false);
+
+        assertEq(overBurnToken.balanceOf(address(fwd)), 100e6);
+        assertEq(overBurnToken.allowance(address(fwd), address(messenger)), 0);
+    }
+
+    function test_mutation_rogueClone_bpsAtOrAbove10000_clampedToAmountMinusOne() public {
+        bytes memory argsAt10000 = abi.encodePacked(
+            address(usdc), address(messenger), DOMAIN_AVALANCHE, RECIPIENT, CALLER_B32, uint16(10_000), COMMITMENT
+        );
+        CctpDepositForwarder rogueEq = CctpDepositForwarder(Clones.cloneWithImmutableArgs(address(impl), argsAt10000));
+        assertEq(rogueEq.quoteMaxFee(100, true), 99, "bps == 10_000 must clamp to amount - 1");
+        assertEq(rogueEq.quoteMaxFee(1, true), 0, "amount == 1 must clamp to 0");
+
+        bytes memory argsAbove10000 = abi.encodePacked(
+            address(usdc), address(messenger), DOMAIN_AVALANCHE, RECIPIENT, CALLER_B32, uint16(20_000), COMMITMENT
+        );
+        CctpDepositForwarder rogueGt =
+            CctpDepositForwarder(Clones.cloneWithImmutableArgs(address(impl), argsAbove10000));
+        assertEq(rogueGt.quoteMaxFee(100, true), 99, "bps > 10_000 must clamp to amount - 1");
+    }
+
+    function test_mutation_pendingAmount_returnsUsdcBalance() public {
+        CctpDepositForwarder fwd = _defaultFwd();
+        assertEq(fwd.pendingAmount(), 0);
+        _fund(address(fwd), 42e6);
+        assertEq(fwd.pendingAmount(), 42e6);
+    }
+
+    function _assertFlushedFastFlag(Vm.Log[] memory logs, bytes32 flushedSig, bool expectedFast, uint256 expectedFee)
+        internal
+        pure
+    {
+        bool found;
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].topics[0] == flushedSig) {
+                found = true;
+                (, bool logFast, uint256 logFee,,,) =
+                    abi.decode(logs[i].data, (uint256, bool, uint256, uint32, bytes32, bytes32));
+                assertEq(logFast, expectedFast, "Flushed fast flag mismatch");
+                assertEq(logFee, expectedFee, "Flushed maxFee mismatch");
+                break;
+            }
+        }
+        assertTrue(found, "Flushed event not emitted");
+    }
+}
+
+/// @dev Local ERC20 test helper that burns 1 extra unit from `from` during `transferFrom`
+///      after consuming the exact allowance, exercising `balanceAfter < expectedRemaining`.
+contract OverBurnUSDC is MockUSDC {
+    bool public burnExtraOnTransferFrom;
+
+    function setBurnExtraOnTransferFrom(bool v) external {
+        burnExtraOnTransferFrom = v;
+    }
+
+    function transferFrom(address from, address to, uint256 value) public override returns (bool) {
+        bool ok = super.transferFrom(from, to, value);
+        if (burnExtraOnTransferFrom) {
+            _burn(from, 1);
+        }
+        return ok;
+    }
+}
+
+/// @dev Local messenger helper that re-enters `flushUpTo` exactly once so removing `nonReentrant`
+///      on `flushUpTo` cannot be masked by a second-level re-entry into `flush`.
+contract OneShotReentrantMessenger is ITokenMessengerV2 {
+    bool internal _reentered;
+    uint256 public callCount;
+
+    function depositForBurnWithHook(
+        uint256 amount,
+        uint32,
+        bytes32,
+        address burnToken,
+        bytes32,
+        uint256,
+        uint32,
+        bytes calldata
+    ) external override {
+        MockUSDC(burnToken).transferFrom(msg.sender, address(this), amount);
+        callCount++;
+        if (!_reentered) {
+            _reentered = true;
+            CctpDepositForwarder(msg.sender).flushUpTo(amount, true);
+        }
     }
 }

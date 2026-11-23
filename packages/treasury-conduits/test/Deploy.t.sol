@@ -140,6 +140,7 @@ contract TreasuryConduitDeployTest {
         V2MockToken token = new V2MockToken();
         V2BurnTarget target = new V2BurnTarget();
         conduit.setTarget(address(target), true);
+        conduit.setToken(address(token), true);
 
         address treasury = address(0x7EA5);
         token.mint(treasury, 100);
@@ -194,59 +195,73 @@ contract TreasuryConduitDeployTest {
         vm.etch(cctpMessenger, hex"600080fd");
         vm.etch(cctpxService, hex"600080fd");
 
-        bytes memory tcPayload = abi.encodePacked(
-            keccak256("bufi.treasury-conduit.v2"),
-            type(TreasuryConduit).creationCode,
-            abi.encode(safe)
+        bytes32 tcSalt = keccak256("bufi.treasury-conduit.v2");
+        bytes memory tcInit = abi.encodePacked(type(TreasuryConduit).creationCode, abi.encode(safe));
+        bytes memory tcPayload = abi.encodePacked(tcSalt, tcInit);
+        address expectedTc =
+            address(uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), create2Factory, tcSalt, keccak256(tcInit))))));
+
+        bytes32 tcp2Salt = keccak256("bufi.treasury-conduit.permit2.v1");
+        bytes memory tcp2Init =
+            abi.encodePacked(type(TreasuryConduitPermit2).creationCode, abi.encode(safe, permit2, addressBook));
+        bytes memory tcp2Payload = abi.encodePacked(tcp2Salt, tcp2Init);
+        address expectedTcp2 = address(
+            uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), create2Factory, tcp2Salt, keccak256(tcp2Init)))))
         );
-        bytes memory tcp2Payload = abi.encodePacked(
-            keccak256("bufi.treasury-conduit.permit2.v1"),
-            type(TreasuryConduitPermit2).creationCode,
-            abi.encode(safe, permit2, addressBook)
+
+        bytes32 tbcv2Salt = keccak256("bufi.treasury-bridge-conduit.v2");
+        bytes memory tbcv2Init = abi.encodePacked(type(TreasuryBridgeConduitV2).creationCode, abi.encode(safe));
+        bytes memory tbcv2Payload = abi.encodePacked(tbcv2Salt, tbcv2Init);
+        address expectedTbcv2 = address(
+            uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), create2Factory, tbcv2Salt, keccak256(tbcv2Init)))))
         );
-        bytes memory tbcv2Payload = abi.encodePacked(
-            keccak256("bufi.treasury-bridge-conduit.v2"),
-            type(TreasuryBridgeConduitV2).creationCode,
-            abi.encode(safe)
-        );
-        bytes memory trcPayload = abi.encodePacked(
-            keccak256("bufi.treasury-redeem-conduit.v1"),
-            type(TreasuryRedeemConduit).creationCode,
-            abi.encode(safe)
+
+        bytes32 trcSalt = keccak256("bufi.treasury-redeem-conduit.v1");
+        bytes memory trcInit = abi.encodePacked(type(TreasuryRedeemConduit).creationCode, abi.encode(safe));
+        bytes memory trcPayload = abi.encodePacked(trcSalt, trcInit);
+        address expectedTrc = address(
+            uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), create2Factory, trcSalt, keccak256(trcInit)))))
         );
 
         vm.prank(safe);
         (bool ok1, bytes memory ret1) = create2Factory.call(tcPayload);
         require(ok1 && ret1.length == 20, "tc deploy failed");
         address tcAddr = address(bytes20(ret1));
-        require(tcAddr == 0x6B33A6E3078F961892eC2A27797F2Bd1efF07327, "tc addr mismatch");
+        require(tcAddr == expectedTc, "tc addr mismatch");
 
         vm.prank(safe);
         (bool ok2, bytes memory ret2) = create2Factory.call(tcp2Payload);
         require(ok2 && ret2.length == 20, "tcp2 deploy failed");
         address tcp2Addr = address(bytes20(ret2));
-        require(tcp2Addr == 0xE7b973C68678888eD4824154529362AcFaC10278, "tcp2 addr mismatch");
+        require(tcp2Addr == expectedTcp2, "tcp2 addr mismatch");
 
         vm.prank(safe);
         (bool ok3, bytes memory ret3) = create2Factory.call(tbcv2Payload);
         require(ok3 && ret3.length == 20, "tbcv2 deploy failed");
         address tbcv2Addr = address(bytes20(ret3));
-        require(tbcv2Addr == 0x3552726aacf5A2761991a270CdE2dba9dc2f5FCc, "tbcv2 addr mismatch");
+        require(tbcv2Addr == expectedTbcv2, "tbcv2 addr mismatch");
 
         vm.prank(safe);
         (bool ok4, bytes memory ret4) = create2Factory.call(trcPayload);
         require(ok4 && ret4.length == 20, "trc deploy failed");
         address trcAddr = address(bytes20(ret4));
-        require(trcAddr == 0x5f47FEEE01B89D8B1A1FAb4e8A52B0C4C2b7EeAa, "trc addr mismatch");
+        require(trcAddr == expectedTrc, "trc addr mismatch");
 
+        address arcUsdc = 0x3600000000000000000000000000000000000000;
         vm.prank(safe);
         TreasuryConduit(tcAddr).setTarget(lifi, true);
         vm.prank(safe);
+        TreasuryConduit(tcAddr).setToken(arcUsdc, true);
+        vm.prank(safe);
         TreasuryConduitPermit2(tcp2Addr).setTarget(lifi, true);
+        vm.prank(safe);
+        TreasuryConduitPermit2(tcp2Addr).setToken(arcUsdc, true);
         vm.prank(safe);
         TreasuryConduitPermit2(tcp2Addr).setPermit2Route(lifi, lifi, true);
         vm.prank(safe);
         TreasuryBridgeConduitV2(tbcv2Addr).setTarget(lifi, true);
+        vm.prank(safe);
+        TreasuryBridgeConduitV2(tbcv2Addr).setToken(arcUsdc, true);
         vm.prank(safe);
         TreasuryBridgeConduitV2(tbcv2Addr).setBridge(TreasuryBridgeConduitV2.BridgeKind.CCTP_V2, cctpMessenger, true);
         vm.prank(safe);
@@ -255,7 +270,10 @@ contract TreasuryConduitDeployTest {
         TreasuryRedeemConduit(trcAddr).setVault(papyVault, true);
 
         require(TreasuryConduit(tcAddr).targets(lifi), "tc target not set");
+        require(TreasuryConduit(tcAddr).tokens(arcUsdc), "tc token not set");
+        require(TreasuryConduitPermit2(tcp2Addr).tokens(arcUsdc), "tcp2 token not set");
         require(TreasuryConduitPermit2(tcp2Addr).permit2Routes(lifi, lifi), "tcp2 route not set");
+        require(TreasuryBridgeConduitV2(tbcv2Addr).tokens(arcUsdc), "tbcv2 token not set");
         require(
             TreasuryBridgeConduitV2(tbcv2Addr).bridges(TreasuryBridgeConduitV2.BridgeKind.CCTP_V2, cctpMessenger),
             "tbcv2 bridge not set"

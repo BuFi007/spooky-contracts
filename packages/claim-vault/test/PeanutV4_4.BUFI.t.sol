@@ -1,9 +1,113 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.23;
 
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+
 import {PeanutV4} from "../src/V4/PeanutV4.4.sol";
 import {MockUSDC} from "./utils/MockUSDC.sol";
 import {ClaimSigs} from "./utils/ClaimSigs.sol";
+
+contract ConstructorAcceptAttacker {
+    constructor(PeanutV4 vault_, bytes memory sig) {
+        vault_.acceptMFAAuthorizer(sig);
+    }
+}
+
+contract DeployedAcceptAttacker {
+    function accept(PeanutV4 vault_, bytes calldata sig) external {
+        vault_.acceptMFAAuthorizer(sig);
+    }
+}
+
+contract MockNFT721 is ERC721 {
+    constructor() ERC721("NFT", "NFT") {}
+    function mint(address to, uint256 id) external { _mint(to, id); }
+}
+
+contract ReentrantVaultERC20 is ERC20 {
+    PeanutV4 public vault;
+    address public linkPub;
+    bool public armed;
+
+    constructor(PeanutV4 v, address k) ERC20("RERC", "RERC") {
+        vault = v;
+        linkPub = k;
+    }
+
+    function mint(address to, uint256 a) external { _mint(to, a); }
+    function arm(bool on) external { armed = on; }
+
+    function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
+        bool ok = super.transferFrom(from, to, amount);
+        if (armed) {
+            armed = false;
+            vault.makeDeposit{value: 1 wei}(address(0), 0, 1 wei, 0, linkPub);
+        }
+        return ok;
+    }
+}
+
+contract ReentrantVault3009 is ERC20 {
+    PeanutV4 public vault;
+    address public linkPub;
+    bool public armed;
+
+    constructor(PeanutV4 v, address k) ERC20("R3009", "R3009") {
+        vault = v;
+        linkPub = k;
+    }
+
+    function mint(address to, uint256 a) external { _mint(to, a); }
+    function arm(bool on) external { armed = on; }
+
+    function receiveWithAuthorization(
+        address from,
+        address to,
+        uint256 value,
+        uint256,
+        uint256,
+        bytes32,
+        uint8,
+        bytes32,
+        bytes32
+    ) external {
+        _transfer(from, to, value);
+        if (armed) {
+            armed = false;
+            vault.makeDeposit{value: 1 wei}(address(0), 0, 1 wei, 0, linkPub);
+        }
+    }
+}
+
+contract ReentrantVaultReceiver {
+    PeanutV4 public vault;
+    address public linkPub;
+    bool public armed;
+
+    constructor(PeanutV4 v, address k) {
+        vault = v;
+        linkPub = k;
+    }
+
+    function arm(bool on) external { armed = on; }
+
+    function isValidSignature(bytes32, bytes calldata) external pure returns (bytes4) {
+        return 0x1626ba7e;
+    }
+
+    function withdrawAsRecipient(uint256 idx, bytes calldata sig) external {
+        vault.withdrawDepositAsRecipient(idx, address(this), sig);
+    }
+
+    receive() external payable {
+        if (armed) {
+            armed = false;
+            vault.makeDeposit{value: 1 wei}(address(0), 0, 1 wei, 0, linkPub);
+        }
+    }
+}
 
 contract PeanutV44BufiTest is ClaimSigs {
     // Arc: the 6-decimal USDC ERC-20 interface. NOT 0x1800… (18-dp native gas).
@@ -28,6 +132,8 @@ contract PeanutV44BufiTest is ClaimSigs {
     uint256 auth2Pk = uint256(keccak256("mfa authorizer 2"));
     address authorizer2;
 
+    event DepositEvent(uint256 indexed _index, uint8 indexed _contractType, uint256 _amount, address indexed _senderAddress);
+    event MessageEvent(string message);
     event MFAAuthorizerTransferStarted(address indexed previousAuthorizer, address indexed newAuthorizer);
     event MFAAuthorizerTransferred(address indexed previousAuthorizer, address indexed newAuthorizer);
     event WithdrawEvent(uint256 indexed _index, uint8 indexed _contractType, uint256 _amount, address indexed _recipientAddress);
@@ -62,6 +168,10 @@ contract PeanutV44BufiTest is ClaimSigs {
 
     function _mfaSig(uint256 pk, uint256 idx, address to) internal view returns (bytes memory) {
         return sign(pk, mfaDigest(block.chainid, address(vault), idx, to));
+    }
+
+    function _mfaAcceptSig(uint256 pk, address newAuth) internal view returns (bytes memory) {
+        return sign(pk, vault.mfaAcceptanceDigest(newAuth));
     }
 
     // ----------------------------------------------------------- construction
@@ -415,17 +525,18 @@ contract PeanutV44BufiTest is ClaimSigs {
         vault.withdrawMFADeposit(idx0, alice, _linkSig(idx0, alice), _mfaSig(authPk, idx0, alice));
 
         // only the pending authorizer can accept (not owner, not anyone)
+        bytes memory acceptSig = _mfaAcceptSig(auth2Pk, authorizer2);
         vm.prank(owner);
         vm.expectRevert("NOT THE PENDING MFA AUTHORIZER");
-        vault.acceptMFAAuthorizer();
+        vault.acceptMFAAuthorizer(acceptSig);
         vm.prank(bob);
         vm.expectRevert("NOT THE PENDING MFA AUTHORIZER");
-        vault.acceptMFAAuthorizer();
+        vault.acceptMFAAuthorizer(acceptSig);
 
         vm.expectEmit(true, true, false, false);
         emit MFAAuthorizerTransferred(authorizer, authorizer2);
         vm.prank(authorizer2);
-        vault.acceptMFAAuthorizer();
+        vault.acceptMFAAuthorizer(acceptSig);
         assertEq(vault.MFA_AUTHORIZER(), authorizer2);
         assertEq(vault.pendingMFAAuthorizer(), address(0));
 
@@ -439,7 +550,7 @@ contract PeanutV44BufiTest is ClaimSigs {
         // accept cannot be replayed
         vm.prank(authorizer2);
         vm.expectRevert("NOT THE PENDING MFA AUTHORIZER");
-        vault.acceptMFAAuthorizer();
+        vault.acceptMFAAuthorizer(acceptSig);
     }
 
     function test_rotation_ownerCanCancelPending() public {
@@ -447,9 +558,10 @@ contract PeanutV44BufiTest is ClaimSigs {
         vault.transferMFAAuthorizer(authorizer2);
         vm.prank(owner);
         vault.cancelMFAAuthorizerTransfer();
+        bytes memory acceptSig = _mfaAcceptSig(auth2Pk, authorizer2);
         vm.prank(authorizer2);
         vm.expectRevert("NOT THE PENDING MFA AUTHORIZER");
-        vault.acceptMFAAuthorizer();
+        vault.acceptMFAAuthorizer(acceptSig);
         assertEq(vault.MFA_AUTHORIZER(), authorizer);
     }
 
@@ -459,7 +571,7 @@ contract PeanutV44BufiTest is ClaimSigs {
         vault.transferMFAAuthorizer(address(0));
         vm.prank(address(0));
         vm.expectRevert("NOT THE PENDING MFA AUTHORIZER");
-        vault.acceptMFAAuthorizer();
+        vault.acceptMFAAuthorizer("");
     }
 
     function test_ownership_isTwoStep() public {
@@ -498,8 +610,9 @@ contract PeanutV44BufiTest is ClaimSigs {
         address evil = vm.addr(evilPk);
         vm.prank(owner);
         vault.transferMFAAuthorizer(evil);
+        bytes memory evilAccept = _mfaAcceptSig(evilPk, evil);
         vm.prank(evil);
-        vault.acceptMFAAuthorizer();
+        vault.acceptMFAAuthorizer(evilAccept);
 
         bytes memory evilLink = sign(evilPk, linkDigest(block.chainid, address(vault), mfa, evil, MODE_ANYONE));
         vm.expectRevert("WRONG SIGNATURE");
@@ -553,8 +666,9 @@ contract PeanutV44BufiTest is ClaimSigs {
 
         vm.prank(owner);
         vault.transferMFAAuthorizer(authorizer2);
+        bytes memory acceptSig = _mfaAcceptSig(auth2Pk, authorizer2);
         vm.prank(authorizer2);
-        vault.acceptMFAAuthorizer();
+        vault.acceptMFAAuthorizer(acceptSig);
 
         vm.expectRevert("WRONG MFA SIGNATURE");
         vault.withdrawMFADeposit(idx, alice, _linkSig(idx, alice), oldMfaSig);
@@ -664,5 +778,216 @@ contract PeanutV44BufiTest is ClaimSigs {
         bytes memory recSig = sign(linkPk, linkDigest(block.chainid, address(vault), idx, alice, MODE_RECIPIENT));
         vm.expectRevert("WRONG SIGNATURE");
         vault.withdrawMFADeposit(idx, alice, recSig, _mfaSig(authPk, idx, alice));
+    }
+
+    function test_BugPoCer_5_2_20_mfaRotationRejectsContractAndInvalidEcdsaProof() public {
+        // 1. Constructor and transferMFAAuthorizer reject already-deployed contracts.
+        address contractAuthorizer = address(usdc);
+        vm.expectRevert("MFA AUTHORIZER CANNOT BE CONTRACT");
+        new PeanutV4(address(0), contractAuthorizer);
+
+        vm.prank(owner);
+        vm.expectRevert("MFA AUTHORIZER CANNOT BE CONTRACT");
+        vault.transferMFAAuthorizer(contractAuthorizer);
+
+        // 2. Digest matches independent EIP-191 spec.
+        bytes32 expectedDigest = ECDSA.toEthSignedMessageHash(
+            keccak256(abi.encodePacked(SALT, block.chainid, address(vault), "ACCEPT_MFA_AUTHORIZER", authorizer2))
+        );
+        assertEq(vault.mfaAcceptanceDigest(authorizer2), expectedDigest);
+
+        // 3. A contract attempting to accept inside its constructor (where code.length == 0) cannot
+        //    produce a valid ECDSA key proof for its own address.
+        address futureCtorAddr = vm.computeCreateAddress(address(this), vm.getNonce(address(this)));
+        vm.prank(owner);
+        vault.transferMFAAuthorizer(futureCtorAddr);
+        bytes memory wrongKeyProof = sign(auth2Pk, vault.mfaAcceptanceDigest(futureCtorAddr));
+        vm.expectRevert("INVALID MFA KEY PROOF");
+        new ConstructorAcceptAttacker(vault, wrongKeyProof);
+        assertEq(vault.MFA_AUTHORIZER(), authorizer);
+
+        // 4. A contract deployed AFTER transferMFAAuthorizer is rejected by code.length == 0 on accept.
+        address futureDeployedAddr = vm.computeCreateAddress(address(this), vm.getNonce(address(this)));
+        vm.prank(owner);
+        vault.transferMFAAuthorizer(futureDeployedAddr);
+        DeployedAcceptAttacker deployedAttacker = new DeployedAcceptAttacker();
+        assertEq(address(deployedAttacker), futureDeployedAddr);
+        vm.expectRevert("MFA AUTHORIZER CANNOT BE CONTRACT");
+        deployedAttacker.accept(vault, wrongKeyProof);
+        assertEq(vault.MFA_AUTHORIZER(), authorizer);
+
+        // 5. EOA pending authorizer with wrong signer or wrong domain digest is rejected.
+        vm.prank(owner);
+        vault.transferMFAAuthorizer(authorizer2);
+        bytes memory wrongSignerSig = sign(authPk, vault.mfaAcceptanceDigest(authorizer2));
+        vm.prank(authorizer2);
+        vm.expectRevert("INVALID MFA KEY PROOF");
+        vault.acceptMFAAuthorizer(wrongSignerSig);
+
+        bytes32 wrongChainDigest = ECDSA.toEthSignedMessageHash(
+            keccak256(abi.encodePacked(SALT, uint256(5042), address(vault), "ACCEPT_MFA_AUTHORIZER", authorizer2))
+        );
+        bytes memory wrongChainSig = sign(auth2Pk, wrongChainDigest);
+        vm.prank(authorizer2);
+        vm.expectRevert("INVALID MFA KEY PROOF");
+        vault.acceptMFAAuthorizer(wrongChainSig);
+
+        // 6. Valid ECDSA proof from the pending EOA succeeds.
+        bytes memory validSig = _mfaAcceptSig(auth2Pk, authorizer2);
+        vm.prank(authorizer2);
+        vault.acceptMFAAuthorizer(validSig);
+        assertEq(vault.MFA_AUTHORIZER(), authorizer2);
+    }
+
+    // ------------------------------------------------------ mutation hardening
+
+    function test_mutation_constructorEmitsMessageEvent() public {
+        vm.expectEmit(false, false, false, true);
+        emit MessageEvent("Hello World, have a nutty day!");
+        new PeanutV4(address(0), authorizer2);
+    }
+
+    function test_mutation_depositAndReclaimEmitExactEvents() public {
+        vm.expectEmit(true, true, true, true);
+        emit DepositEvent(0, 1, AMOUNT, treasury);
+        vm.prank(sender);
+        uint256 idx0 = vault.makeSelflessMFADeposit(ARC_USDC, 1, AMOUNT, 0, linkPub, treasury);
+        assertEq(idx0, 0);
+
+        vm.expectEmit(true, true, true, true);
+        emit DepositEvent(1, 1, AMOUNT, treasury);
+        vm.prank(sender);
+        uint256 idx1 = vault.makeSelflessMFADeposit(ARC_USDC, 1, AMOUNT, 0, linkPub, treasury);
+        assertEq(idx1, 1);
+
+        vm.expectEmit(true, true, true, true);
+        emit WithdrawEvent(idx0, 1, AMOUNT, treasury);
+        vm.prank(treasury);
+        vault.withdrawDepositSender(idx0);
+    }
+
+    function test_mutation_ethDepositRejectsWrongAmount() public {
+        vm.deal(sender, 2 ether);
+        vm.prank(sender);
+        vm.expectRevert("WRONG ETH AMOUNT");
+        vault.makeDeposit{value: 1 ether}(address(0), 0, 2 ether, 0, linkPub);
+
+        vm.prank(sender);
+        uint256 idx = vault.makeDeposit{value: 1 ether}(address(0), 0, 1 ether, 0, linkPub);
+        assertEq(vault.getDeposit(idx).amount, 1 ether);
+    }
+
+    function test_mutation_erc721DepositEnforcesAmountOne() public {
+        MockNFT721 nft = new MockNFT721();
+        nft.mint(sender, 42);
+        vm.startPrank(sender);
+        nft.approve(address(vault), 42);
+        vm.expectRevert("AMOUNT MUST BE 1 FOR ERC721");
+        vault.makeDeposit(address(nft), 2, 2, 42, linkPub);
+
+        uint256 idx = vault.makeDeposit(address(nft), 2, 1, 42, linkPub);
+        vm.stopPrank();
+        assertEq(nft.ownerOf(42), address(vault));
+
+        vault.withdrawDeposit(idx, alice, _linkSig(idx, alice));
+        assertEq(nft.ownerOf(42), alice);
+    }
+
+    function test_mutation_cancelMFAAuthorizerTransferOnlyOwnerAndEmitsEvent() public {
+        vm.prank(owner);
+        vault.transferMFAAuthorizer(authorizer2);
+
+        vm.prank(bob);
+        vm.expectRevert("Ownable: caller is not the owner");
+        vault.cancelMFAAuthorizerTransfer();
+
+        vm.expectEmit(true, true, false, false);
+        emit MFAAuthorizerTransferStarted(authorizer, address(0));
+        vm.prank(owner);
+        vault.cancelMFAAuthorizerTransfer();
+        assertEq(vault.pendingMFAAuthorizer(), address(0));
+    }
+
+    function test_mutation_nonReentrantGuardsAllDepositAndWithdrawEntrypoints() public {
+        // 1. All 5 approval-based deposit entrypoints: makeDeposit, makeMFADeposit,
+        //    makeSelflessMFADeposit, makeSelflessDeposit, makeCustomDeposit.
+        ReentrantVaultERC20 reToken = new ReentrantVaultERC20(vault, linkPub);
+        vm.deal(address(reToken), 1 ether);
+        reToken.mint(sender, 1000);
+        vm.prank(sender);
+        reToken.approve(address(vault), type(uint256).max);
+
+        reToken.arm(true);
+        vm.prank(sender);
+        vm.expectRevert("ReentrancyGuard: reentrant call");
+        vault.makeDeposit(address(reToken), 1, 100, 0, linkPub);
+
+        reToken.arm(true);
+        vm.prank(sender);
+        vm.expectRevert("ReentrancyGuard: reentrant call");
+        vault.makeMFADeposit(address(reToken), 1, 100, 0, linkPub);
+
+        reToken.arm(true);
+        vm.prank(sender);
+        vm.expectRevert("ReentrancyGuard: reentrant call");
+        vault.makeSelflessMFADeposit(address(reToken), 1, 100, 0, linkPub, treasury);
+
+        reToken.arm(true);
+        vm.prank(sender);
+        vm.expectRevert("ReentrancyGuard: reentrant call");
+        vault.makeSelflessDeposit(address(reToken), 1, 100, 0, linkPub, treasury);
+
+        reToken.arm(true);
+        vm.prank(sender);
+        vm.expectRevert("ReentrancyGuard: reentrant call");
+        vault.makeCustomDeposit(address(reToken), 1, 100, 0, linkPub, treasury, true, address(0), 0, false, "");
+
+        // 2. EIP-3009 deposit entrypoint: makeDepositWithAuthorization.
+        ReentrantVault3009 re3009 = new ReentrantVault3009(vault, linkPub);
+        vm.deal(address(re3009), 1 ether);
+        re3009.mint(sender, 1000);
+        re3009.arm(true);
+        vm.expectRevert("ReentrancyGuard: reentrant call");
+        vault.makeDepositWithAuthorization(
+            address(re3009), sender, 100, linkPub, bytes32(uint256(1)), 0, type(uint256).max, 27, bytes32(0), bytes32(0)
+        );
+
+        // 3. All 5 withdrawal entrypoints: withdrawDeposit, withdrawMFADeposit,
+        //    withdrawDepositAsRecipient, withdrawDepositSender, withdrawDepositSenderGasless.
+        ReentrantVaultReceiver recv = new ReentrantVaultReceiver(vault, linkPub);
+        vm.deal(address(recv), 1 ether);
+        vm.deal(sender, 10 ether);
+
+        vm.startPrank(sender);
+        uint256 idxPlain = vault.makeDeposit{value: 1 ether}(address(0), 0, 1 ether, 0, linkPub);
+        uint256 idxMfa = vault.makeMFADeposit{value: 1 ether}(address(0), 0, 1 ether, 0, linkPub);
+        uint256 idxRecip = vault.makeDeposit{value: 1 ether}(address(0), 0, 1 ether, 0, linkPub);
+        uint256 idxSender = vault.makeSelflessDeposit{value: 1 ether}(address(0), 0, 1 ether, 0, linkPub, address(recv));
+        uint256 idxGasless = vault.makeSelflessDeposit{value: 1 ether}(address(0), 0, 1 ether, 0, linkPub, address(recv));
+        vm.stopPrank();
+
+        recv.arm(true);
+        vm.expectRevert("Transfer failed");
+        vault.withdrawDeposit(idxPlain, address(recv), _linkSig(idxPlain, address(recv)));
+
+        recv.arm(true);
+        vm.expectRevert("Transfer failed");
+        vault.withdrawMFADeposit(
+            idxMfa, address(recv), _linkSig(idxMfa, address(recv)), _mfaSig(authPk, idxMfa, address(recv))
+        );
+
+        bytes memory recModeSig = sign(linkPk, linkDigest(block.chainid, address(vault), idxRecip, address(recv), MODE_RECIPIENT));
+        recv.arm(true);
+        vm.expectRevert("Transfer failed");
+        recv.withdrawAsRecipient(idxRecip, recModeSig);
+
+        recv.arm(true);
+        vm.prank(address(recv));
+        vm.expectRevert("FAILED TO WITHDRAW ETH TO SENDER");
+        vault.withdrawDepositSender(idxSender);
+
+        recv.arm(true);
+        vm.expectRevert("FAILED TO WITHDRAW ETH TO SENDER");
+        vault.withdrawDepositSenderGasless(PeanutV4.GaslessReclaim(idxGasless), address(recv), "");
     }
 }

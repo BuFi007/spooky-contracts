@@ -11,6 +11,14 @@ interface IInvoiceShelf {
     }
 
     function applyPaymentFrom(uint256 invoiceId, uint256 amount, address payer) external;
+    function USDC() external view returns (address);
     function invoiceStatus(uint256 invoiceId) external view returns (Status);
     function sellerAgentIdOf(uint256 invoiceId) external view returns (uint256);
+    function debtorPayerOf(uint256 invoiceId) external view returns (address);
+    function isLate(uint256 invoiceId) external view returns (bool);
+    function currentInstallment(uint256 invoiceId)
+        external
+        view
+        returns (uint8 index, uint256 fullAmount, uint256 paidAmount, uint256 maturity, uint256 graceEndsAt);
+    function remainingFaceOf(uint256 invoiceId) external view returns (uint256);
 }

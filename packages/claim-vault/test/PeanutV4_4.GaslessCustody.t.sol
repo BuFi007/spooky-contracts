@@ -276,4 +276,14 @@ contract PeanutV44GaslessCustodyTest is ClaimSigs {
         assertEq(vault.getDeposit(idx).reclaimableAfter, 0);
         assertEq(vault.getDeposit(idx).recipient, address(0));
     }
+
+    function test_gasless3009_withPriorVaultDonation_measuresExactBalanceDelta() public {
+        token.mint(address(vault), 777);
+        Intent memory intent = _intent(vm.addr(LINK_PK));
+        bytes32 nonce = _nonce(intent, block.chainid, address(vault));
+        bytes memory args = _args(intent, nonce);
+        uint256 idx = _submit(intent, args);
+        assertEq(vault.getDeposit(idx).amount, AMOUNT);
+        assertEq(token.balanceOf(address(vault)), AMOUNT + 777);
+    }
 }

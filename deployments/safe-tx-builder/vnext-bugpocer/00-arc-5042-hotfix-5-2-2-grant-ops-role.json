@@ -1,0 +1,43 @@
+{
+  "version": "1.0",
+  "chainId": "5042",
+  "createdAt": 1795392000000,
+  "meta": {
+    "name": "BUFI Arc 5042 Immediate Hotfix (BugPoCer 5.2.2): Grant OPS_ROLE to Live InvoiceShelf",
+    "description": "Grants OPS_ROLE on live Nov 7 BUFIReputationRegistry (0x2D7125b1cf826bE4ad6D0b043F6B4675897EB2e9) to live Nov 7 InvoiceShelf (0x90eCDd402C0E357362b7805173191A153b876DF4) so resolveDefault Restructured succeeds immediately.",
+    "txBuilderVersion": "1.16.5",
+    "createdFromSafeAddress": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
+    "createdFromOwnerAddress": "",
+    "checksum": "0x9aa6d703326ff6bc139615aa30c6e9ed3f19c9bb14d7766e8ccbcc3a71c848ae"
+  },
+  "transactions": [
+    {
+      "to": "0x2D7125b1cf826bE4ad6D0b043F6B4675897EB2e9",
+      "value": "0",
+      "data": "0x2f2ff15d65aa5eac1b32fde55d4db583460221274367300ae805596cf543907b5d458c0000000000000000000000000090ecdd402c0e357362b7805173191a153b876df4",
+      "contractMethod": {
+        "inputs": [
+          {
+            "internalType": "bytes32",
+            "name": "role",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "address",
+            "name": "account",
+            "type": "address"
+          }
+        ],
+        "name": "grantRole",
+        "payable": false
+      },
+      "contractInputsValues": {
+        "role": "0x65aa5eac1b32fde55d4db583460221274367300ae805596cf543907b5d458c00",
+        "account": "0x90eCDd402C0E357362b7805173191A153b876DF4"
+      },
+      "meta": {
+        "label": "BUFIReputationRegistry (live Nov 7).grantRole(OPS_ROLE, InvoiceShelf (live Nov 7))"
+      }
+    }
+  ]
+}

@@ -22,11 +22,6 @@ import {MultiTokenReceivableEscrow} from "./MultiTokenReceivableEscrow.sol";
 ///
 /// NOT EIP-1363: that is a token-side standard our third-party stablecoins don't implement. See
 /// docs/superpowers/specs/2026-07-09-erc3009-gasless-memo-settlement.md.
-///
-/// Multi-currency: each allowed token maps to its OWN ReceivableEscrow (the escrow is single-token
-/// by design — Σ escrowedOf == token held). `setToken` is the registry-sourced allowlist; adding a
-/// stablecoin is a config action, never a redeploy. Settlement stays separate (InvoiceSettlement /
-/// the CRE keeper reacting to `RecibuPayment`) — this router is the thin, auditable deposit path.
 contract RecibuMemoRouter is AccessControl, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -34,6 +29,7 @@ contract RecibuMemoRouter is AccessControl, ReentrancyGuard {
     uint8 public constant CAP_3009 = 1 << 0;
     uint8 public constant CAP_PERMIT = 1 << 1;
     uint64 public constant TOKEN_DISABLE_DELAY = 1 days;
+    uint64 public constant TOKEN_DISABLE_WINDOW = 7 days;
 
     bytes32 public constant AUTH_PAYMENT_NONCE_TYPEHASH = keccak256(
         "RecibuAuthorizationPayment(uint256 chainId,address router,address token,address from,uint256 invoiceId,uint8 installment,uint256 amount,uint256 validAfter,uint256 validBefore)"
@@ -60,6 +56,7 @@ contract RecibuMemoRouter is AccessControl, ReentrancyGuard {
     );
     event TokenConfigured(address indexed token, bool allowed, uint8 caps);
     event TokenDisableScheduled(address indexed token, uint64 readyAt);
+    event TokenDisableCancelled(address indexed token);
 
     error ZeroAmount();
     error InvoiceNotFunded(uint256 invoiceId);
@@ -70,6 +67,11 @@ contract RecibuMemoRouter is AccessControl, ReentrancyGuard {
     error UnauthorizedPermitCaller(address caller, address owner);
     error InvalidAuthorizationNonce(bytes32 provided, bytes32 expected);
     error TokenDisableNotReady(address token, uint64 readyAt);
+    error UnauthorizedPayer(uint256 invoiceId, address payer, address expectedPayer);
+    error InsufficientLatePayment(uint256 totalEscrowed, uint256 required);
+    error LateNonDenominationPayment(uint256 invoiceId, address token);
+    error Overpayment(uint256 totalEscrowed, uint256 remainingFace);
+    error BalanceMismatch();
 
     constructor(IInvoiceShelf shelf, MultiTokenReceivableEscrow escrow, address admin) {
         if (address(shelf) == address(0) || address(escrow) == address(0) || admin == address(0)) revert ZeroAddress();
@@ -86,7 +88,8 @@ contract RecibuMemoRouter is AccessControl, ReentrancyGuard {
 
     // ── admin: registry-sourced token allowlist ──────────────────────────────
 
-    /// @notice schedule removal of an already-enabled settlement token after TOKEN_DISABLE_DELAY.
+    /// @notice schedule removal or capability reduction of an already-enabled settlement token
+    ///         after TOKEN_DISABLE_DELAY.
     function scheduleTokenDisable(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (token == address(0)) revert ZeroAddress();
         if (!tokenConfig[token].allowed) revert TokenNotAllowed(token);
@@ -95,20 +98,50 @@ contract RecibuMemoRouter is AccessControl, ReentrancyGuard {
         emit TokenDisableScheduled(token, readyAt);
     }
 
-    /// @notice enable/disable a settlement token + its per-token escrow + capabilities.
-    ///         The escrow MUST be deployed for `token` (single-token invariant).
+    function cancelTokenDisable(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (token == address(0)) revert ZeroAddress();
+        delete tokenDisableScheduledAt[token];
+        emit TokenDisableCancelled(token);
+    }
+
+    /// @notice enable/disable a settlement token + capabilities.
+    ///         Disabling or stripping capabilities requires a live timelock within TOKEN_DISABLE_WINDOW.
     function setToken(address token, bool allowed, uint8 caps) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (token == address(0)) revert ZeroAddress();
-        if (allowed) {
-            if (!ESCROW.supportedToken(token)) revert EscrowTokenUnsupported(token);
-            delete tokenDisableScheduledAt[token];
-        } else if (tokenConfig[token].allowed) {
-            uint64 readyAt = tokenDisableScheduledAt[token];
-            if (readyAt == 0 || block.timestamp < readyAt) revert TokenDisableNotReady(token, readyAt);
+        TokenConfig memory cur = tokenConfig[token];
+        if (!allowed) {
+            if (cur.allowed) {
+                uint64 readyAt = tokenDisableScheduledAt[token];
+                if (
+                    readyAt == 0 || block.timestamp < readyAt
+                        || block.timestamp > uint256(readyAt) + TOKEN_DISABLE_WINDOW
+                ) {
+                    revert TokenDisableNotReady(token, readyAt);
+                }
+                delete tokenDisableScheduledAt[token];
+            }
+            tokenConfig[token] = TokenConfig(false, 0);
+            emit TokenConfigured(token, false, 0);
+            return;
+        }
+
+        if (!ESCROW.supportedToken(token)) revert EscrowTokenUnsupported(token);
+        if (cur.allowed) {
+            if ((cur.caps & ~caps) != 0) {
+                uint64 readyAt = tokenDisableScheduledAt[token];
+                if (
+                    readyAt == 0 || block.timestamp < readyAt
+                        || block.timestamp > uint256(readyAt) + TOKEN_DISABLE_WINDOW
+                ) {
+                    revert TokenDisableNotReady(token, readyAt);
+                }
+                delete tokenDisableScheduledAt[token];
+            }
+        } else {
             delete tokenDisableScheduledAt[token];
         }
-        tokenConfig[token] = TokenConfig(allowed, caps);
-        emit TokenConfigured(token, allowed, caps);
+        tokenConfig[token] = TokenConfig(true, caps);
+        emit TokenConfigured(token, true, caps);
     }
 
     /// @notice Deterministic ERC-3009 nonce binding `(chainId, router, token, from, invoiceId, installment, amount, validAfter, validBefore)`.
@@ -142,9 +175,11 @@ contract RecibuMemoRouter is AccessControl, ReentrancyGuard {
     /// @notice legacy path — needs a prior `token.approve(router, amount)`. Fallback for tokens
     ///         with neither ERC-3009 nor ERC-2612.
     function pay(address token, uint256 invoiceId, uint8 installment, uint256 amount) external nonReentrant {
-        TokenConfig memory cfg = _guard(token, invoiceId, amount);
+        _guard(token, invoiceId, amount, msg.sender);
+        uint256 beforeBal = IERC20(token).balanceOf(address(this));
         IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
-        _bind(cfg, token, invoiceId, installment, amount, msg.sender);
+        if (IERC20(token).balanceOf(address(this)) != beforeBal + amount) revert BalanceMismatch();
+        _bind(token, invoiceId, installment, amount, msg.sender);
     }
 
     /// @notice ERC-2612 permit — `owner`'s signed approval + pull in one tx (no prior approve).
@@ -160,11 +195,13 @@ contract RecibuMemoRouter is AccessControl, ReentrancyGuard {
         bytes32 s
     ) external nonReentrant {
         if (msg.sender != owner) revert UnauthorizedPermitCaller(msg.sender, owner);
-        TokenConfig memory cfg = _guard(token, invoiceId, amount);
+        TokenConfig memory cfg = _guard(token, invoiceId, amount, msg.sender);
         if (cfg.caps & CAP_PERMIT == 0) revert CapabilityMissing(token, CAP_PERMIT);
         try IERC2612(token).permit(msg.sender, address(this), amount, deadline, v, r, s) {} catch {}
+        uint256 beforeBal = IERC20(token).balanceOf(address(this));
         IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
-        _bind(cfg, token, invoiceId, installment, amount, msg.sender);
+        if (IERC20(token).balanceOf(address(this)) != beforeBal + amount) revert BalanceMismatch();
+        _bind(token, invoiceId, installment, amount, msg.sender);
     }
 
     /// @notice ERC-3009 receiveWithAuthorization — gasless for `from`, one tx, no approve.
@@ -184,35 +221,51 @@ contract RecibuMemoRouter is AccessControl, ReentrancyGuard {
         bytes32 r,
         bytes32 s
     ) external nonReentrant {
-        TokenConfig memory cfg = _guard(token, invoiceId, amount);
+        TokenConfig memory cfg = _guard(token, invoiceId, amount, from);
         if (cfg.caps & CAP_3009 == 0) revert CapabilityMissing(token, CAP_3009);
         bytes32 expectedNonce =
             authorizationNonceOf(token, from, invoiceId, installment, amount, validAfter, validBefore);
         if (nonce != expectedNonce) revert InvalidAuthorizationNonce(nonce, expectedNonce);
+        uint256 beforeBal = IERC20(token).balanceOf(address(this));
         IERC3009(token).receiveWithAuthorization(from, address(this), amount, validAfter, validBefore, nonce, v, r, s);
-        _bind(cfg, token, invoiceId, installment, amount, from);
+        if (IERC20(token).balanceOf(address(this)) != beforeBal + amount) revert BalanceMismatch();
+        _bind(token, invoiceId, installment, amount, from);
     }
 
     // ── internals ────────────────────────────────────────────────────────────
 
-    function _guard(address token, uint256 invoiceId, uint256 amount) internal view returns (TokenConfig memory cfg) {
+    function _guard(address token, uint256 invoiceId, uint256 amount, address payer)
+        internal
+        view
+        returns (TokenConfig memory cfg)
+    {
         if (amount == 0) revert ZeroAmount();
         cfg = tokenConfig[token];
         if (!cfg.allowed) revert TokenNotAllowed(token);
         if (SHELF.invoiceStatus(invoiceId) != IInvoiceShelf.Status.Funded) revert InvoiceNotFunded(invoiceId);
+        address expectedPayer = SHELF.debtorPayerOf(invoiceId);
+        if (expectedPayer == address(0) || payer != expectedPayer) {
+            revert UnauthorizedPayer(invoiceId, payer, expectedPayer);
+        }
+        address denomination = SHELF.USDC();
+        if (token == denomination) {
+            uint256 existing = ESCROW.tokenOf(invoiceId) == token ? ESCROW.escrowedOf(invoiceId) : 0;
+            uint256 rem = SHELF.remainingFaceOf(invoiceId);
+            if (existing + amount > rem) revert Overpayment(existing + amount, rem);
+            if (SHELF.isLate(invoiceId)) {
+                (, uint256 fullAmount, uint256 paidAmount,,) = SHELF.currentInstallment(invoiceId);
+                uint256 openAmount = fullAmount - paidAmount;
+                if (existing + amount < openAmount) revert InsufficientLatePayment(existing + amount, openAmount);
+            }
+        } else {
+            if (SHELF.isLate(invoiceId)) revert LateNonDenominationPayment(invoiceId, token);
+        }
     }
 
-    /// @dev token now sits in the router; bind it in the per-token escrow + emit the twin event.
-    function _bind(
-        TokenConfig memory cfg,
-        address token,
-        uint256 invoiceId,
-        uint8 installment,
-        uint256 amount,
-        address from
-    ) internal {
+    function _bind(address token, uint256 invoiceId, uint8 installment, uint256 amount, address from) internal {
         IERC20(token).forceApprove(address(ESCROW), amount);
         ESCROW.deposit(invoiceId, token, amount, address(this));
+        IERC20(token).forceApprove(address(ESCROW), 0);
         emit RecibuPayment(invoiceId, installment, memoIdOf(invoiceId, installment), token, amount, from);
     }
 }

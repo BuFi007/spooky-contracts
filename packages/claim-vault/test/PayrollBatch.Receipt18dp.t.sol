@@ -84,7 +84,7 @@ contract PayrollBatchReceipt18dpTest is PayrollPermit2 {
         PayrollBatch.Payout[] memory p = _payouts(address(fee), to, a);
         PayrollBatch.ClaimDeposit[] memory none = new PayrollBatch.ClaimDeposit[](0);
         ISignatureTransfer.PermitBatchTransferFrom memory permit = _oneTokenPermit(address(fee), amount);
-        bytes memory sig = _signPayroll(batch, permit, "s", p, none, quorumPk);
+        bytes memory sig = _signPayroll(batch, permit, address(treasury), "s", p, none, quorumPk);
 
         vm.expectRevert(
             abi.encodeWithSelector(PayrollBatch.ShortReceipt.selector, address(fee), amount, amount - amount / 1000)
@@ -101,7 +101,7 @@ contract PayrollBatchReceipt18dpTest is PayrollPermit2 {
         PayrollBatch.Payout[] memory none = new PayrollBatch.Payout[](0);
         PayrollBatch.ClaimDeposit[] memory c = _claim(address(w), makeAddr("link"), 500e18);
         ISignatureTransfer.PermitBatchTransferFrom memory permit = _oneTokenPermit(address(w), 500e18);
-        bytes memory sig = _signPayroll(batch, permit, "r", none, c, quorumPk);
+        bytes memory sig = _signPayroll(batch, permit, address(treasury), "r", none, c, quorumPk);
 
         vm.expectRevert(abi.encodeWithSelector(PayrollBatch.Retained.selector, address(w)));
         batch.executePayroll(permit, address(treasury), sig, "r", none, c);

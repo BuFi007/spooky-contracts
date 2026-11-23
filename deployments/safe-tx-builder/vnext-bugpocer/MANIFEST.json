@@ -1,0 +1,414 @@
+{
+  "schemaVersion": 3,
+  "release": "vnext-bugpocer",
+  "generatedAt": "2026-11-23",
+  "sourceBranch": "fix/bugpocer-audit-remediation",
+  "sourceCommit": "baa6fb56a5844b1438a0ce0f9404156171d4e9d8",
+  "txBuilderVersion": "1.16.5",
+  "compiler": {
+    "mode": "canonical-solc",
+    "forge": "forge Version: 1.10.0",
+    "profiles": {
+      "default": "solc 0.8.24 (paris, via_ir=true, optimizer_runs=200, bytecode_hash=ipfs)",
+      "treasury-v3": "solc 0.8.24 (paris, via_ir=true, optimizer_runs=200, bytecode_hash=ipfs)",
+      "fx-hub": "solc 0.8.26 (cancun, via_ir=true, optimizer_runs=200, bytecode_hash=ipfs)",
+      "fx-cctp-forwarder": "solc 0.8.26 (cancun, via_ir=true, optimizer_runs=200, bytecode_hash=ipfs)",
+      "claim-vault": "solc 0.8.23 (paris, optimizer_runs=99999)"
+    }
+  },
+  "create2Factory": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+  "saltSuffix": ".bugpocer.vnext",
+  "batches": {
+    "00-arc-5042-hotfix-5-2-2-grant-ops-role.json": {
+      "chainId": "5042",
+      "safeAddress": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
+      "name": "BUFI Arc 5042 Immediate Hotfix (BugPoCer 5.2.2): Grant OPS_ROLE to Live InvoiceShelf",
+      "transactionCount": 1,
+      "checksum": "0x9aa6d703326ff6bc139615aa30c6e9ed3f19c9bb14d7766e8ccbcc3a71c848ae",
+      "sha256": "0xd13cf6680a85ac5b2a1448949b544de0d761d2a6525934589ced2ab5919627de"
+    },
+    "01a-arc-testnet-5042002-vnext-conduits-v2.json": {
+      "chainId": "5042002",
+      "safeAddress": "0xA3a40fa2d82C0224c40b1Ed7E07cb474B7D1468B",
+      "name": "BUFI Arc Testnet 5042002 vNext Batch 1A: Treasury Conduits v2 + Token/Target/Bridge/CCTPx Wiring",
+      "transactionCount": 24,
+      "checksum": "0xddde04e7dc70c71f877e760489a43719892a6db6e0dd97e4dea7a773a651da6b",
+      "sha256": "0x9eaa5a62a1dbc18cfbfc9fa6c465dd6c0355ceb5aa8a7facd3ec4ae918ffe039"
+    },
+    "01b-arc-testnet-5042002-vnext-conduits-v3.json": {
+      "chainId": "5042002",
+      "safeAddress": "0xA3a40fa2d82C0224c40b1Ed7E07cb474B7D1468B",
+      "name": "BUFI Arc Testnet 5042002 vNext Batch 1B: Treasury Conduits v3 + SwapAndDeposit + Wiring",
+      "transactionCount": 29,
+      "checksum": "0x32bbe116f8d013a8aa61734e1e11107427e97bcee34b5d8ed30b6e0c87985f23",
+      "sha256": "0x46d592c18560080e6d03ffa1e6bc4a571c0faf310be8030053855e50e9b7222f"
+    },
+    "01c-arc-testnet-5042002-vnext-claim-vault-and-forwarder.json": {
+      "chainId": "5042002",
+      "safeAddress": "0xA3a40fa2d82C0224c40b1Ed7E07cb474B7D1468B",
+      "name": "BUFI Arc Testnet 5042002 vNext Batch 1C: CCTP Forwarder, ClaimVault (PeanutV4.4) & PayrollBatch",
+      "transactionCount": 5,
+      "checksum": "0xc2b9b8362dd20a4e0c2be853100e01118fbe21f26349838efaf231c8cfe57bc8",
+      "sha256": "0x1c94a176c8ac66fae5b50b40f40665025c11109c971bf10ef3a782176d360011"
+    },
+    "02a-arc-5042-vnext-conduits-v2.json": {
+      "chainId": "5042",
+      "safeAddress": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
+      "name": "BUFI Arc Mainnet 5042 vNext Batch 2A: Treasury Conduits v2 + Token/Target/Bridge/CCTPx Wiring",
+      "transactionCount": 32,
+      "checksum": "0x55bc28bed1fd22b272a40e8a4fdde817167d47a37ec59f4b0606ec0ff7a744f8",
+      "sha256": "0x1484deb562a57d6b2488407e29ccc25b8c3a2f77028e892491b783b605cb8c57"
+    },
+    "02b-arc-5042-vnext-conduits-v3.json": {
+      "chainId": "5042",
+      "safeAddress": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
+      "name": "BUFI Arc Mainnet 5042 vNext Batch 2B: Treasury Conduits v3 + SwapAndDeposit + Wiring",
+      "transactionCount": 39,
+      "checksum": "0x6cb65cdca9c09926fcd6dbedb5c4f03b5ce48e57af3489d8d7df1ca7d59f7c47",
+      "sha256": "0xb1f1cdbbb556caa048ea93a035a344e90ec59f37b39f0bf1be79a1b34c80cd33"
+    },
+    "02c-arc-5042-vnext-fx-hub-part1.json": {
+      "chainId": "5042",
+      "safeAddress": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
+      "name": "BUFI Arc Mainnet 5042 vNext Batch 2C: FX-Recibu Hub Part 1 (Reputation, Tier, Reserve, InvoiceShelf + Roles)",
+      "transactionCount": 12,
+      "checksum": "0xfcd0088b2d52336ff6fa5d140132c3dc91a4468b235878ed966540f68bdf3cbc",
+      "sha256": "0x65208e3b64a42982bdd37205182c7638a82df1f2a341e8cd4d00bc92bb7f7a5f"
+    },
+    "02d-arc-5042-vnext-fx-hub-part2.json": {
+      "chainId": "5042",
+      "safeAddress": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
+      "name": "BUFI Arc Mainnet 5042 vNext Batch 2D: FX-Recibu Hub Part 2 (Escrow, MemoRouter, CCTP Forwarder + Wiring)",
+      "transactionCount": 10,
+      "checksum": "0xfc29665a7b5cedb78c9c79f4f3684678478ce13eb7802618bb13c448a591f8ec",
+      "sha256": "0x05800f7085c5dc450703b87101b1a2540b0ddcf4f9bad2ab46c68c5506df4afe"
+    },
+    "02e-arc-5042-vnext-claim-vault.json": {
+      "chainId": "5042",
+      "safeAddress": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
+      "name": "BUFI Arc Mainnet 5042 vNext Batch 2E: ClaimVault (PeanutV4.4) + acceptOwnership + PayrollBatch",
+      "transactionCount": 3,
+      "checksum": "0x6855e33db2af43a2ce792877e238496ebd52cc4c25623805015b6b1d05e5703b",
+      "sha256": "0xbf6de7835a8e861140ff356ea076946825739acfaa7c33f253971c718219dcc8"
+    },
+    "03a-avalanche-43114-vnext-conduits-v2.json": {
+      "chainId": "43114",
+      "safeAddress": "0xA3a40fa2d82C0224c40b1Ed7E07cb474B7D1468B",
+      "name": "BUFI Avalanche 43114 vNext Batch 3A: Treasury Conduits v2 + Token/Target/Bridge/CCTPx Wiring",
+      "transactionCount": 28,
+      "checksum": "0xfe2ef709293aa8fe917c162c8768b58ecd1680e5cdbd24b81b3c0245a8072118",
+      "sha256": "0x5c2fdc07405fd765f7dfe49249b992f51684f032252870755c7cbf5a43042485"
+    },
+    "03b-avalanche-43114-vnext-conduits-v3-and-forwarder.json": {
+      "chainId": "43114",
+      "safeAddress": "0xA3a40fa2d82C0224c40b1Ed7E07cb474B7D1468B",
+      "name": "BUFI Avalanche 43114 vNext Batch 3B: Treasury Bridge Conduits v3 + CCTP Forwarder + Wiring",
+      "transactionCount": 28,
+      "checksum": "0x53fcf4aeab3a56254a4e7381824d8b2fca3cde91a43a19301066a3e0c7b6bc24",
+      "sha256": "0x4ae5e4ccc735a1c200d01f568702422c2255289171c9298882561e35e44244e2"
+    },
+    "03c-avalanche-43114-vnext-claim-vault.json": {
+      "chainId": "43114",
+      "safeAddress": "0xA3a40fa2d82C0224c40b1Ed7E07cb474B7D1468B",
+      "name": "BUFI Avalanche 43114 vNext Batch 3C: ClaimVault (PeanutV4.4) + acceptOwnership + PayrollBatch",
+      "transactionCount": 3,
+      "checksum": "0x730edd0d7e900eb793708c937f2e670cc184df5173e4640d7dc82483374004a3",
+      "sha256": "0x20620950257d6f729448ca37e7248c782a26909891a25b72f2b9f8a91fd9de5e"
+    },
+    "04a-base-8453-vnext-cctp-forwarder-and-claim-vault.json": {
+      "chainId": "8453",
+      "safeAddress": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
+      "name": "BUFI Base Mainnet 8453 vNext Batch 4A: CCTP Forwarder, ClaimVault (PeanutV4.4) & PayrollBatch",
+      "transactionCount": 4,
+      "checksum": "0x07875255d33a01b55db7434db407d4ca3bbf30c43914fd53833581c17322cbe3",
+      "sha256": "0x3d0e6cfedb891c54957ebef3fbd8482508bd5a7b21296f631989e7a5e2661bc8"
+    },
+    "04b-base-8453-vnext-claim-vault-accept-ownership.json": {
+      "chainId": "8453",
+      "safeAddress": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
+      "name": "BUFI Base Mainnet 8453 vNext Batch 4B: PeanutV4.acceptOwnership() from Base Safe",
+      "transactionCount": 1,
+      "checksum": "0xd8857628983894e0d526bf04d424092e0a7cb2aa7c8900099174cf42eb9ef851",
+      "sha256": "0x69cf5a02660748d59b0d7d30db8d21d729a90bc71ef003c2ace0dc4f7338c7ea"
+    }
+  },
+  "chains": {
+    "5042002": {
+      "name": "Arc Testnet",
+      "safe": "0xA3a40fa2d82C0224c40b1Ed7E07cb474B7D1468B",
+      "contracts": {
+        "TreasuryConduit": "0xe7E3592A5c911C094c401743E5727122579AF153",
+        "TreasuryConduitPermit2": "0xfd39bD3147b7dB1382164642c1CC0453395fC6A8",
+        "TreasuryBridgeConduitV2": "0xB72563dC5eB2D63e3eE7b0d7e01327018F922ff1",
+        "TreasuryConduitV3": "0xB1C941ca3aB87dF0E187BC49f5134634924a3f70",
+        "TreasuryBridgeConduit": "0x5891A451F60C36d74367b047D385E360D70f3242",
+        "TreasuryBridgeConduitPermit2": "0x92580aDb23973567C8590978aA202768606d26b9",
+        "TreasurySwapAndDeposit": "0x02c2FC1C7a8C9436670387ed4079A0C7d6c909cB",
+        "CctpDepositForwarderImplementation": "0xDe831fe5175D9aBeF63516ff7EA4f02c81223221",
+        "CctpDepositForwarderFactory": "0x0d89a614F7Ec3A2452fDf9C39eEb01F69a926c98",
+        "ClaimVaultDeployer": "0x05c14dfd71bD9028909ce42c7F6dC645D6DfA927",
+        "PeanutV4": "0x334c0c981fbBFff5D93A26F7429a86d97F03778e",
+        "PayrollBatch": "0x0eD7f2a1edb378fB8407c1B7E187fd1b5daC25Cf"
+      }
+    },
+    "5042": {
+      "name": "Arc Mainnet",
+      "safe": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
+      "contracts": {
+        "BUFIIdentityRegistry_ReusedLiveNov7": "0x6730b8f3FF0eF85E097Af01eC8a3e450d30e466d",
+        "TreasuryConduit": "0x5dD2e0112B10681e799155676486E1D8aD8c77d7",
+        "TreasuryConduitPermit2": "0xc87dfe14675D2F973ED99961cf0b5a82e357FfE6",
+        "TreasuryBridgeConduitV2": "0xE74C0A896F52015c3e8f474c30C52C00c56DB3d8",
+        "TreasuryConduitV3": "0xbe4b7524576BD9AB2E6D88A8BE74773CcBa4B4E7",
+        "TreasuryBridgeConduit": "0xfdC52570590dD8F9801cF501CffFC17C29D7f77e",
+        "TreasuryBridgeConduitPermit2": "0xE8C1A1B56FDF3628a30e4EB18274274A12cac3D6",
+        "TreasurySwapAndDeposit": "0x3541BfbD564058Be47A0cfFD00291a93A8bd6670",
+        "BUFIReputationRegistry": "0x3627cFFF52a1a895Dc2198971B10D3d64d312215",
+        "WorkspaceTierRegistry": "0x77E2837370f431F0C52bC5236B86BF92EAC2BE06",
+        "WorkspaceOperatingReserve": "0x3cDEC911Df8345D8d6bFB83d34dCBBfeB4d67605",
+        "InvoiceShelf": "0xD2FaA2B5044819fda138c7D3B0cfAF3b06E60E8C",
+        "BINV": "0xB841BF47FEfcb4cAd2cBF7584c2DcB62255ace8D",
+        "BIFTrancheSenior_bIF_A": "0xDdA5AaDD985f9f16650841979BE9BD9477d82A2D",
+        "BIFTrancheMezzanine_bIF_B": "0x1136B27a2bfd328f99A9De5E146A55b72036d3a1",
+        "BIFTrancheJunior_bIF_C": "0x73aB46451999854B515BB875fd7F6cbFFa597689",
+        "MultiTokenReceivableEscrow": "0x4Aa12CfadAe9e32e55111caD9c98A24C784d9E52",
+        "RecibuMemoRouter": "0xB9eA41D9a9a9BF2F81a4FC9d22994226F4645b52",
+        "CctpDepositForwarderImplementation": "0xDe831fe5175D9aBeF63516ff7EA4f02c81223221",
+        "CctpDepositForwarderFactory": "0x4C3D9249C8FEE9d35B045B09b97fc99CE6CEB8E5",
+        "ClaimVaultDeployer": "0xA8376Fe8Ef5a6640e39f047c751d7740C10f2cEA",
+        "PeanutV4": "0x75EbdB0065729849bb1A8807718B753374AD2Ca1",
+        "PayrollBatch": "0x7DFBb79878a70d1981D0DF76c8262fDddd883FEc"
+      }
+    },
+    "43114": {
+      "name": "Avalanche C-Chain Mainnet",
+      "safe": "0xA3a40fa2d82C0224c40b1Ed7E07cb474B7D1468B",
+      "contracts": {
+        "TreasuryConduit": "0xe7E3592A5c911C094c401743E5727122579AF153",
+        "TreasuryConduitPermit2": "0xfd39bD3147b7dB1382164642c1CC0453395fC6A8",
+        "TreasuryBridgeConduitV2": "0xB72563dC5eB2D63e3eE7b0d7e01327018F922ff1",
+        "TreasuryBridgeConduit": "0x5891A451F60C36d74367b047D385E360D70f3242",
+        "TreasuryBridgeConduitPermit2": "0x92580aDb23973567C8590978aA202768606d26b9",
+        "CctpDepositForwarderImplementation": "0xDe831fe5175D9aBeF63516ff7EA4f02c81223221",
+        "CctpDepositForwarderFactory": "0x1E4B7346FbBadAd0b63e7b424f36A6A4C3690354",
+        "ClaimVaultDeployer": "0x05c14dfd71bD9028909ce42c7F6dC645D6DfA927",
+        "PeanutV4": "0x334c0c981fbBFff5D93A26F7429a86d97F03778e",
+        "PayrollBatch": "0x0eD7f2a1edb378fB8407c1B7E187fd1b5daC25Cf"
+      }
+    },
+    "8453": {
+      "name": "Base Mainnet",
+      "safe": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
+      "notes": "0x47Dc7D18...0D09 has 0 code bytes on Base 8453 as of 2026-11-23; deploy 04a via MultiSendCallOnly (0x9641...02e2) or Base Safe once deployed, then run 04b from Base Safe.",
+      "contracts": {
+        "CctpDepositForwarderImplementation": "0xDe831fe5175D9aBeF63516ff7EA4f02c81223221",
+        "CctpDepositForwarderFactory": "0x15d3A8C8Cd938D57D211BaFf2987FacA3B81fd1C",
+        "ClaimVaultDeployer": "0xA8376Fe8Ef5a6640e39f047c751d7740C10f2cEA",
+        "PeanutV4": "0x75EbdB0065729849bb1A8807718B753374AD2Ca1",
+        "PayrollBatch": "0x7DFBb79878a70d1981D0DF76c8262fDddd883FEc"
+      }
+    }
+  },
+  "bytecodeHashes": {
+    "BIFTranche": {
+      "artifact": "fx-hub/BIFTranche.sol/BIFTranche.json",
+      "compiler": "0.8.26+commit.8a97fa7a",
+      "initcodeBytes": 3015,
+      "runtimeBytes": 2056,
+      "initcodeKeccak256": "0x6c52a3d0c162094cf43bbc62b4b4590a39f9272f81286dd77ef0551d4f18f6b0",
+      "initcodeSha256": "0x7aa6ad6c70d5c8d267154aa5462916cafcbb1003b01f1f29348eba25a3512ac3",
+      "runtimeKeccak256": "0x010c8a67d6faa9ca7f8e96c3c74e0c17784ec8d2dd40987a56406550b3d9036a",
+      "runtimeSha256": "0x35823621d152774c08d02e492a212c1e594ff52fb76c17dedd1eef247a5bf631"
+    },
+    "BINV": {
+      "artifact": "fx-hub/BINV.sol/BINV.json",
+      "compiler": "0.8.26+commit.8a97fa7a",
+      "initcodeBytes": 5014,
+      "runtimeBytes": 4141,
+      "initcodeKeccak256": "0xff1e75c7a44b06e08d256facba0b56d9013d9e93a1d145192672ccda2f9e2a20",
+      "initcodeSha256": "0xb8b6fd059e9e52b43a91ee6a92608fedcda7438adfd070f32dcfcf77e44d7777",
+      "runtimeKeccak256": "0xcd65dfbfa7175b456dd2c817067ffb4a1f468b7745f70261044ca4eb7936880a",
+      "runtimeSha256": "0xdaab9ea6ac9b80a67fc5483249ffb560c309433a1b7a086af6e403384a5d7838"
+    },
+    "BUFIReputationRegistry": {
+      "artifact": "fx-hub/BUFIReputationRegistry.sol/BUFIReputationRegistry.json",
+      "compiler": "0.8.26+commit.8a97fa7a",
+      "initcodeBytes": 4403,
+      "runtimeBytes": 4016,
+      "initcodeKeccak256": "0x1d938a612b5f03aecc958cc527cc481e2d7d8e70d1ce590121a8d49ed2873cce",
+      "initcodeSha256": "0x0cab0c7d17a8a8919ab7e0bdc8402ecf95694a63a0b0e7b2937985877b33cad9",
+      "runtimeKeccak256": "0xf817a3f00e33fcbdb4a73fa51d70b743e2619f4c362aa5cc5673d91389c76912",
+      "runtimeSha256": "0x32e01a0855da5d6abab3966f5f7a1ba7cd6f62d11bf9d6eb748cddb898096745"
+    },
+    "CctpDepositForwarder": {
+      "artifact": "fx-cctp-forwarder/CctpDepositForwarder.sol/CctpDepositForwarder.json",
+      "compiler": "0.8.26+commit.8a97fa7a",
+      "initcodeBytes": 3256,
+      "runtimeBytes": 3190,
+      "initcodeKeccak256": "0xd498e3bacf12c646de733576efc63b7c62ab1dad1df52f93a03de497f4b0a4ec",
+      "initcodeSha256": "0x538ed6347e2812e8ecf0cc5942a2157560258c9809f8985e051682250fbddf58",
+      "runtimeKeccak256": "0x53edadd6627e16de08b2db965492c07d8ea2ec660a841be2126c4fa72a874bde",
+      "runtimeSha256": "0x91c34a48e0d1655633065c639fd15854586ddd97c025374de74bf360631165a0"
+    },
+    "CctpDepositForwarderFactory": {
+      "artifact": "fx-cctp-forwarder/CctpDepositForwarderFactory.sol/CctpDepositForwarderFactory.json",
+      "compiler": "0.8.26+commit.8a97fa7a",
+      "initcodeBytes": 2485,
+      "runtimeBytes": 2165,
+      "initcodeKeccak256": "0xed2caa566d563b746222e7ea9f92c5defa50deb998623871cb6a2352854a05e8",
+      "initcodeSha256": "0x6c0f588343c28f3d13614590bdc21dbe7db3c334de04a87f2632661c8bd8e4ac",
+      "runtimeKeccak256": "0x078a1af6e80dfeaf9c654d503c76ac31bba41cfb68993b810134626633c3973b",
+      "runtimeSha256": "0x3ad7ade15402eb64705cbcf6c8db46e208c66bbbfcdabb3a4a852b15315c8206"
+    },
+    "ClaimVaultDeployer": {
+      "artifact": "claim-vault/ClaimVaultDeployer.sol/ClaimVaultDeployer.json",
+      "compiler": "0.8.23+commit.f704f362",
+      "initcodeBytes": 23784,
+      "runtimeBytes": 58,
+      "initcodeKeccak256": "0xcc2bc92cd129f739f1129747c591727be9604364a40d2ca4b7a95efb98f15e7c",
+      "initcodeSha256": "0x236f01800dfe2616fbde9e014e835fdc21bf45d82f3153f14dcba26f8096c7fe",
+      "runtimeKeccak256": "0x004ae0e3d6d1d82b62fb399ee8718db190efd4bcc96d8511a948e042a12d79a6",
+      "runtimeSha256": "0xbc559cba2604ca9690e88aadf190a23c683dde7f44a08185d1788248a0b8a26e"
+    },
+    "InvoiceShelf": {
+      "artifact": "fx-hub/InvoiceShelf.sol/InvoiceShelf.json",
+      "compiler": "0.8.26+commit.8a97fa7a",
+      "initcodeBytes": 33348,
+      "runtimeBytes": 23825,
+      "initcodeKeccak256": "0xb95906ec28670a03a8a87b573b6e98417ecf53409d01dfe9945ab5ed44fb9bea",
+      "initcodeSha256": "0x87a4ba7c46fab28c0785e52e7631d4133557d2329049d2af58712660f4f55f4e",
+      "runtimeKeccak256": "0x04dc327e20fe0def43cf00adf34811eaffe484c22ebe3d03fb3e8c4d77ab85ee",
+      "runtimeSha256": "0x1aebfa4634d9a07a1aa918a7d99fa8e9f8b27dfc141cea503c5769ed17fab088"
+    },
+    "MultiTokenReceivableEscrow": {
+      "artifact": "fx-hub/MultiTokenReceivableEscrow.sol/MultiTokenReceivableEscrow.json",
+      "compiler": "0.8.26+commit.8a97fa7a",
+      "initcodeBytes": 5575,
+      "runtimeBytes": 5200,
+      "initcodeKeccak256": "0xda26f08bb29bd021d2ec39185d8fcdb90b097812ac65fae3d4383d5c2a7aaf98",
+      "initcodeSha256": "0x37e93057ca789c0e0a9f18a726b65138de5aaa3bdafac758b1fb6a988213315b",
+      "runtimeKeccak256": "0xe493761d8557055c66af347f8351527957292b1fdae1d0dd7f1c17ff0577a5c9",
+      "runtimeSha256": "0xb247d3bfa1feebcc1761d290adb1961fb61f9508f925d6ca10279f7185f38f65"
+    },
+    "PayrollBatch": {
+      "artifact": "claim-vault/PayrollBatch.sol/PayrollBatch.json",
+      "compiler": "0.8.23+commit.f704f362",
+      "initcodeBytes": 12965,
+      "runtimeBytes": 11433,
+      "initcodeKeccak256": "0x14765bdc1217bb88a2d57d97987fc1078587aff4173f5b2e0deb70be73387d8a",
+      "initcodeSha256": "0x3b85f6df4e20c7a6915e919b70176906f821d589dd078c0b7d651d535cc88ce6",
+      "runtimeKeccak256": "0x8657a98d7f9ba1a2e23a18877e93c66b7eea2a99ca35ae5b27033d1687cf80f5",
+      "runtimeSha256": "0x522fca987c27bae4b497d39f996c19bf7c1e1e48368f19df0b108cc2f4b8ee2f"
+    },
+    "PeanutV4": {
+      "artifact": "claim-vault/PeanutV4.4.sol/PeanutV4.json",
+      "compiler": "0.8.23+commit.f704f362",
+      "initcodeBytes": 23183,
+      "runtimeBytes": 22302,
+      "initcodeKeccak256": "0x1aa3b4e0b0c09ccc9b657b727c5b399adc2a26a4f7f151b2934faa5ee71fa7e0",
+      "initcodeSha256": "0x7e38278a4ade64396f412b4e3147c953df2c00155bc308957a31d73269365d7d",
+      "runtimeKeccak256": "0x860562d92fbab6ffeffdef6e6fb28d2f7b7e61ed25b4ff1163298be2729bb6bc",
+      "runtimeSha256": "0x6556dbe22338ad5de586adaec584f74c9670810f359b1cc6d49ff2af4ff3fa5d"
+    },
+    "RecibuMemoRouter": {
+      "artifact": "fx-hub/RecibuMemoRouter.sol/RecibuMemoRouter.json",
+      "compiler": "0.8.26+commit.8a97fa7a",
+      "initcodeBytes": 7474,
+      "runtimeBytes": 6982,
+      "initcodeKeccak256": "0x38238adb90cf02f1f2ec3862e4d94da092244c6e897e94ff19feec5b9006f48e",
+      "initcodeSha256": "0x7e0be73a6126f770d0800f765a8621a610297e90c074f0451aaaa3d2cc88c322",
+      "runtimeKeccak256": "0x737b4d6f197274944c41b2bfb097caaf3f0940bdf79c4526ddff8cbe86aa27d7",
+      "runtimeSha256": "0xbbafd20d44c9867c308acd18c1d1a5f00af2f910193807f8531129b8c98a63db"
+    },
+    "TreasuryBridgeConduit": {
+      "artifact": "treasury-v3/TreasuryBridgeConduit.sol/TreasuryBridgeConduit.json",
+      "compiler": "0.8.24+commit.e11b9ed9",
+      "initcodeBytes": 11007,
+      "runtimeBytes": 10776,
+      "initcodeKeccak256": "0xb30ab978109aecb6b225d6075a42bb3607c818988a3f359171c8fd22ea4508b5",
+      "initcodeSha256": "0x0bcebeb738c70f8d74dd4f9ec14dbfa531f802f7b7c61c1bb584c760e2aa80b2",
+      "runtimeKeccak256": "0x284b7936aa7bb8ba9fc58507fec44a278de775f09090118e9939d210c53a9eaf",
+      "runtimeSha256": "0x53baaad4b338482716b573ea25318c38ba4f9fabb57632f5cd4d11531e78874f"
+    },
+    "TreasuryBridgeConduitPermit2": {
+      "artifact": "treasury-v3/TreasuryBridgeConduitPermit2.sol/TreasuryBridgeConduitPermit2.json",
+      "compiler": "0.8.24+commit.e11b9ed9",
+      "initcodeBytes": 18935,
+      "runtimeBytes": 18562,
+      "initcodeKeccak256": "0x472aa8cc317dc53ab027d9803a919b11fd33016c6f0ce8e2f003c44d8e80766e",
+      "initcodeSha256": "0x0af3e5509d002acbfa5dc4f5e94420f8d7cb16af663dcdb261fba5fafd704294",
+      "runtimeKeccak256": "0x1d07a94b0dad5da4e79602998406d84f035b548bd66bcf0fc0f7f3b39cd45830",
+      "runtimeSha256": "0xede94e4bd4ae7415d707da7ef3afed9de0c5f20217b0ba3939343d9263c99ab9"
+    },
+    "TreasuryBridgeConduitV2": {
+      "artifact": "treasury/TreasuryBridgeConduitV2.sol/TreasuryBridgeConduitV2.json",
+      "compiler": "0.8.24+commit.e11b9ed9",
+      "initcodeBytes": 13173,
+      "runtimeBytes": 12937,
+      "initcodeKeccak256": "0xabca4b96a5da922c403959d3b80c8786eaf5bd87f56e0f196a53cdffdb1a3fca",
+      "initcodeSha256": "0x3434bcc2109e1d73d5e7107bd082b4dc8bc307465a42d4f7ad43f469a8430400",
+      "runtimeKeccak256": "0xcc9b67f4ce30a174ac577a28c9819b6faba72e28ada71187ff5b2a01e8d5a888",
+      "runtimeSha256": "0xaf1b9193cdcd4bad42c8b57114530b0991421ac03a737933ee148675d6120867"
+    },
+    "TreasuryConduit": {
+      "artifact": "treasury/TreasuryConduit.sol/TreasuryConduit.json",
+      "compiler": "0.8.24+commit.e11b9ed9",
+      "initcodeBytes": 6521,
+      "runtimeBytes": 6292,
+      "initcodeKeccak256": "0x4d4a4063664948235113314653ffa3b8074ab0f4a5f48aff849d9366ffca7579",
+      "initcodeSha256": "0x93e308b030e77f871da33c761e8b61d111c37242fd8a8dbee9466c6c00e18cc1",
+      "runtimeKeccak256": "0xdc9cc7d4ec2b3bd3ade270dee9b90c5b275d65c5a879e604be792b1cd605e873",
+      "runtimeSha256": "0x7e6e7607050f221aa47c4e1fbb739fccaff632091399fd15aef53b9337075cd3"
+    },
+    "TreasuryConduitPermit2": {
+      "artifact": "treasury/TreasuryConduitPermit2.sol/TreasuryConduitPermit2.json",
+      "compiler": "0.8.24+commit.e11b9ed9",
+      "initcodeBytes": 12693,
+      "runtimeBytes": 12264,
+      "initcodeKeccak256": "0xf7800fd061fa358e6cd631650fc7386be4bcfbd67e4b69f178cbbbcbf5920939",
+      "initcodeSha256": "0x87331117f74c0a253deae30ad896335a9f2ef7fb38a3cc13c8099c8896f7c993",
+      "runtimeKeccak256": "0xf707c5dc7c29172def9a12fa747b820512b3f1acbb60c6f4969fa1e9d0724502",
+      "runtimeSha256": "0xcec3c4b1887d83e1d77a30ae212a284ba8c0d670805498e06e44a16841f6a703"
+    },
+    "TreasuryConduitV3": {
+      "artifact": "treasury-v3/TreasuryConduit.sol/TreasuryConduit.json",
+      "compiler": "0.8.24+commit.e11b9ed9",
+      "initcodeBytes": 6513,
+      "runtimeBytes": 6284,
+      "initcodeKeccak256": "0x8beafe5c1005ad4effdd9ee36f82f5bd3b67ed7204c276c6d7e2764dade6f07b",
+      "initcodeSha256": "0xb5b893f532504f069c5be67384b98cd40961d39418c8d32a2331b13f9c3afd61",
+      "runtimeKeccak256": "0x18ee734be2954a3c3407551359ffae4771284fa8efb06a277ec84f3c4616acaf",
+      "runtimeSha256": "0x014b5fea7a8f66735c4e93a523a9c612c2e77f69bdf7b9a48afeffbf25234ec6"
+    },
+    "TreasurySwapAndDeposit": {
+      "artifact": "treasury-v3/TreasurySwapAndDeposit.sol/TreasurySwapAndDeposit.json",
+      "compiler": "0.8.24+commit.e11b9ed9",
+      "initcodeBytes": 5305,
+      "runtimeBytes": 4928,
+      "initcodeKeccak256": "0xba8b9ec6c9ad214892fc2883e95a1985f4908ca2e91e912a51cebd934acd41e5",
+      "initcodeSha256": "0xa51f2886ea2ac750f145999c0481137d53b94566343197f43293697cda812a29",
+      "runtimeKeccak256": "0xe17eec231b7cefe7a25ed283ebc428afcc54c0e2d6c977f7fdd4f964ac0f9f6c",
+      "runtimeSha256": "0x3568fdd8768f8997c71d8b6a78cd6ef36638b937f87edc55b9f13531dff55389"
+    },
+    "WorkspaceOperatingReserve": {
+      "artifact": "fx-hub/WorkspaceOperatingReserve.sol/WorkspaceOperatingReserve.json",
+      "compiler": "0.8.26+commit.8a97fa7a",
+      "initcodeBytes": 2633,
+      "runtimeBytes": 2281,
+      "initcodeKeccak256": "0x21bd7795206746371c36af84c8acb8eb94f259ad94aac86a3d65fa3003de58bd",
+      "initcodeSha256": "0x6aa334393a03740eae8bcfb70bbc6dad3c25f54992f0c3aa16e6078f58ac7a55",
+      "runtimeKeccak256": "0x7e9e57be6c96b1f4a8d075bff4c7cfa1fd6e68e9bf788900e880602f9e7eec68",
+      "runtimeSha256": "0x579766e78eaa395394705593acd00371219e00feededef1902364f2ad806a0f5"
+    },
+    "WorkspaceTierRegistry": {
+      "artifact": "fx-hub/WorkspaceTierRegistry.sol/WorkspaceTierRegistry.json",
+      "compiler": "0.8.26+commit.8a97fa7a",
+      "initcodeBytes": 2409,
+      "runtimeBytes": 2175,
+      "initcodeKeccak256": "0xb2a7f7dffb9d8449c611dedfe0cdfb6d673c8d06a402441aa2e2145596b5cb16",
+      "initcodeSha256": "0x5a89a5ceb7a0d71f039ab55e49f56b79216c1898b8b1ac4752018dd358ccf77a",
+      "runtimeKeccak256": "0xee5cd3b9c7f178bd996f971e633607c36e96761907bdf6e696be7b9b6caaab2d",
+      "runtimeSha256": "0xb09c8ae1079501ab1fd89e15a4d8eb950cdb002bebabffe79ee4a9a1c9d71b1f"
+    }
+  }
+}

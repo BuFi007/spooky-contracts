@@ -182,3 +182,23 @@ fs_permissions = [
 
 [profile.claim-vault.fuzz]
 runs = 1024
+
+# Verification profile for vNext BugPoCer Safe Transaction Builder JSON batches
+# and live Arc Mainnet (5042) fork checks. Kept out of build-all.sh / test-all.sh
+# so production profiles and compiler inputs stay untouched.
+[profile.vnext-safe-verify]
+src = "deployments/safe-tx-builder/vnext-bugpocer/verify"
+test = "deployments/safe-tx-builder/vnext-bugpocer/verify"
+script = "deployments/safe-tx-builder/vnext-bugpocer/verify"
+out = "out/vnext-safe-verify"
+libs = ["packages/claim-vault/lib"]
+solc = "0.8.26"
+optimizer = true
+optimizer_runs = 200
+evm_version = "cancun"
+remappings = [
+    "forge-std/=packages/claim-vault/lib/forge-std/src/",
+]
+fs_permissions = [
+    { access = "read", path = "deployments/safe-tx-builder/vnext-bugpocer" },
+]

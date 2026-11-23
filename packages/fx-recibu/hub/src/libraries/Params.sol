@@ -33,6 +33,10 @@ library Params {
     uint256 internal constant L0_USDC = 1_500e6;
     /// @dev L(w) step earned per on-time settled installment (~$250)
     uint256 internal constant RAMP_STEP_USDC = 250e6;
+    uint256 internal constant MIN_CREDITED_INSTALLMENT_USDC = RAMP_STEP_USDC;
+    /// @dev maximum line growth within one epoch, relative to the epoch-start line (20%)
+    uint16 internal constant RAMP_MAX_BPS_PER_EPOCH = 2000;
+    uint256 internal constant MIN_PAIR_SETTLEMENT_USDC = RAMP_STEP_USDC;
     /// @dev hard ceiling on L(w) regardless of history (~$250k) — raise by governance only
     uint256 internal constant L_MAX_USDC = 250_000e6;
     /// @dev no single debtor may back more than this share of L(w)

@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "chainId": "8453",
+  "createdAt": 1795392000000,
+  "meta": {
+    "name": "BUFI Base Mainnet 8453 vNext Batch 4B: PeanutV4.acceptOwnership() from Base Safe",
+    "description": "Completes Ownable2Step ownership handover on Base Mainnet PeanutV4.4 once Safe 0x47Dc7D18A6E3a79F696714E7D47456a49B430D09 is deployed on Base 8453.",
+    "txBuilderVersion": "1.16.5",
+    "createdFromSafeAddress": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
+    "createdFromOwnerAddress": "",
+    "checksum": "0xd8857628983894e0d526bf04d424092e0a7cb2aa7c8900099174cf42eb9ef851"
+  },
+  "transactions": [
+    {
+      "to": "0x75EbdB0065729849bb1A8807718B753374AD2Ca1",
+      "value": "0",
+      "data": "0x79ba5097",
+      "contractMethod": {
+        "inputs": [],
+        "name": "acceptOwnership",
+        "payable": false
+      },
+      "contractInputsValues": {},
+      "meta": {
+        "label": "PeanutV4.acceptOwnership() (completes Ownable2Step handover once Base Safe 0x47Dc...0D09 is deployed)"
+      }
+    }
+  ]
+}

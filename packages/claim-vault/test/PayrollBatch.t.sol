@@ -76,6 +76,84 @@ contract MockTreasury1271 {
     }
 }
 
+/// Mints 1 extra unit to `target` when transferring into it (triggers `received > owed[i]` in `_pull`).
+contract PBOverDeliverPullToken is ERC20 {
+    address public immutable target;
+    constructor(address t) ERC20("OVP", "OVP") { target = t; }
+    function mint(address to, uint256 a) external { _mint(to, a); }
+    function _transfer(address f, address t, uint256 a) internal override {
+        super._transfer(f, t, a);
+        if (t == target) _mint(t, 1);
+    }
+}
+
+/// Mints 1 extra unit to recipient when transferring out of `sender_` (triggers `received > p.amount` in `_payAll`).
+contract PBOverDeliverPayoutToken is ERC20 {
+    address public immutable sender_;
+    constructor(address s) ERC20("OVO", "OVO") { sender_ = s; }
+    function mint(address to, uint256 a) external { _mint(to, a); }
+    function _transfer(address f, address t, uint256 a) internal override {
+        super._transfer(f, t, a);
+        if (f == sender_) _mint(t, 1);
+    }
+}
+
+/// Token + rogue vault pair where the vault burns 1 extra unit from `batch` during `makeCustomDeposit`,
+/// triggering `balAfter < before[i]` in `_assertNoRetention`.
+contract PBDrainToken is ERC20 {
+    constructor() ERC20("DRN", "DRN") {}
+    function mint(address to, uint256 a) external { _mint(to, a); }
+    function burnExtra(address from, uint256 a) external { _burn(from, a); }
+}
+
+contract PBDrainingVault is IPeanutV4MFAVault {
+    function makeCustomDeposit(
+        address token,
+        uint8,
+        uint256 amount,
+        uint256,
+        address,
+        address,
+        bool,
+        address,
+        uint40,
+        bool,
+        bytes calldata
+    ) external payable returns (uint256) {
+        PBDrainToken(token).transferFrom(msg.sender, address(this), amount);
+        PBDrainToken(token).burnExtra(msg.sender, 1);
+        return 0;
+    }
+}
+
+/// Reenters `PayrollBatch.cancelPayroll` during `_payAll` transfer to verify `nonReentrant`.
+contract PBReentrantToken is ERC20 {
+    PayrollBatch public batch;
+    address public reenterFrom;
+    bytes32 public reenterId;
+    uint256 public reenterDeadline;
+    bytes public reenterSig;
+    bool public armed;
+
+    constructor(PayrollBatch b) ERC20("RE", "RE") { batch = b; }
+    function mint(address to, uint256 a) external { _mint(to, a); }
+    function arm(address from_, bytes32 id_, uint256 deadline_, bytes calldata sig_) external {
+        reenterFrom = from_;
+        reenterId = id_;
+        reenterDeadline = deadline_;
+        reenterSig = sig_;
+        armed = true;
+    }
+
+    function _transfer(address f, address t, uint256 a) internal override {
+        super._transfer(f, t, a);
+        if (armed && f == address(batch)) {
+            armed = false;
+            batch.cancelPayroll(reenterFrom, reenterId, reenterDeadline, reenterSig);
+        }
+    }
+}
+
 contract PayrollBatchTest is ClaimSigs {
     uint256 constant ARC_TESTNET = 5042002;
     ISignatureTransfer constant PERMIT2 = ISignatureTransfer(0x000000000022D473030F116dDEE9F6B43aC78BA3);
@@ -175,7 +253,7 @@ contract PayrollBatchTest is ClaimSigs {
         PayrollBatch.Payout[] memory payouts,
         PayrollBatch.ClaimDeposit[] memory claims
     ) internal {
-        bytes memory sig = _sign(permit, batch.witnessOf(payrollId, payouts, claims), quorumPk);
+        bytes memory sig = _sign(permit, batch.witnessOf(address(treasury), payrollId, payouts, claims), quorumPk);
         batch.executePayroll(permit, address(treasury), sig, payrollId, payouts, claims);
     }
 
@@ -255,7 +333,8 @@ contract PayrollBatchTest is ClaimSigs {
     function test_tamperedRecipient_reverts() public {
         ISignatureTransfer.PermitBatchTransferFrom memory permit = _oneToken(address(usd6), 10e6);
         bytes32 id = keccak256("t");
-        bytes memory sig = _sign(permit, batch.witnessOf(id, _payouts1(address(usd6), alice, 10e6), _noClaims()), quorumPk);
+        bytes memory sig =
+            _sign(permit, batch.witnessOf(address(treasury), id, _payouts1(address(usd6), alice, 10e6), _noClaims()), quorumPk);
         vm.expectRevert();
         batch.executePayroll(permit, address(treasury), sig, id, _payouts1(address(usd6), bob, 10e6), _noClaims());
     }
@@ -263,7 +342,7 @@ contract PayrollBatchTest is ClaimSigs {
     function test_tamperedPayrollId_reverts() public {
         ISignatureTransfer.PermitBatchTransferFrom memory permit = _oneToken(address(usd6), 10e6);
         PayrollBatch.Payout[] memory p = _payouts1(address(usd6), alice, 10e6);
-        bytes memory sig = _sign(permit, batch.witnessOf(keccak256("a"), p, _noClaims()), quorumPk);
+        bytes memory sig = _sign(permit, batch.witnessOf(address(treasury), keccak256("a"), p, _noClaims()), quorumPk);
         vm.expectRevert();
         batch.executePayroll(permit, address(treasury), sig, keccak256("b"), p, _noClaims());
     }
@@ -271,7 +350,8 @@ contract PayrollBatchTest is ClaimSigs {
     function test_wrongSigner_reverts() public {
         ISignatureTransfer.PermitBatchTransferFrom memory permit = _oneToken(address(usd6), 10e6);
         PayrollBatch.Payout[] memory p = _payouts1(address(usd6), alice, 10e6);
-        bytes memory sig = _sign(permit, batch.witnessOf(keccak256("w"), p, _noClaims()), uint256(keccak256("attacker")));
+        bytes memory sig =
+            _sign(permit, batch.witnessOf(address(treasury), keccak256("w"), p, _noClaims()), uint256(keccak256("attacker")));
         vm.expectRevert();
         batch.executePayroll(permit, address(treasury), sig, keccak256("w"), p, _noClaims());
     }
@@ -280,7 +360,7 @@ contract PayrollBatchTest is ClaimSigs {
         ISignatureTransfer.PermitBatchTransferFrom memory permit = _oneToken(address(usd6), 10e6);
         PayrollBatch.Payout[] memory p = _payouts1(address(usd6), alice, 10e6);
         bytes32 id = keccak256("r");
-        bytes memory sig = _sign(permit, batch.witnessOf(id, p, _noClaims()), quorumPk);
+        bytes memory sig = _sign(permit, batch.witnessOf(address(treasury), id, p, _noClaims()), quorumPk);
         batch.executePayroll(permit, address(treasury), sig, id, p, _noClaims());
         vm.expectRevert(PayrollBatch.AlreadyExecuted.selector);
         batch.executePayroll(permit, address(treasury), sig, id, p, _noClaims());
@@ -289,7 +369,7 @@ contract PayrollBatchTest is ClaimSigs {
     function test_permitted_mustEqualOwed() public {
         PayrollBatch.Payout[] memory p = _payouts1(address(usd6), alice, 10e6);
         ISignatureTransfer.PermitBatchTransferFrom memory permit = _oneToken(address(usd6), 11e6);
-        bytes memory sig = _sign(permit, batch.witnessOf(keccak256("m"), p, _noClaims()), quorumPk);
+        bytes memory sig = _sign(permit, batch.witnessOf(address(treasury), keccak256("m"), p, _noClaims()), quorumPk);
         vm.expectRevert(
             abi.encodeWithSelector(PayrollBatch.PermittedAmountMismatch.selector, address(usd6), 11e6, 10e6)
         );
@@ -305,7 +385,7 @@ contract PayrollBatchTest is ClaimSigs {
         treasury.approveMax(address(f), address(PERMIT2));
         ISignatureTransfer.PermitBatchTransferFrom memory permit = _oneToken(address(f), 100e18);
         PayrollBatch.Payout[] memory p = _payouts1(address(f), alice, 100e18);
-        bytes memory sig = _sign(permit, batch.witnessOf(keccak256("f"), p, _noClaims()), quorumPk);
+        bytes memory sig = _sign(permit, batch.witnessOf(address(treasury), keccak256("f"), p, _noClaims()), quorumPk);
         vm.expectRevert(abi.encodeWithSelector(PayrollBatch.ShortReceipt.selector, address(f), 100e18, 99e18));
         batch.executePayroll(permit, address(treasury), sig, keccak256("f"), p, _noClaims());
     }
@@ -314,7 +394,8 @@ contract PayrollBatchTest is ClaimSigs {
         PayrollBatch.ClaimDeposit[] memory c = new PayrollBatch.ClaimDeposit[](1);
         c[0] = PayrollBatch.ClaimDeposit(address(usd6), address(0), 1e6);
         ISignatureTransfer.PermitBatchTransferFrom memory permit = _oneToken(address(usd6), 1e6);
-        bytes memory sig = _sign(permit, batch.witnessOf(keccak256("z"), new PayrollBatch.Payout[](0), c), quorumPk);
+        bytes memory sig =
+            _sign(permit, batch.witnessOf(address(treasury), keccak256("z"), new PayrollBatch.Payout[](0), c), quorumPk);
         vm.expectRevert(PayrollBatch.ZeroLinkKey.selector);
         batch.executePayroll(permit, address(treasury), sig, keccak256("z"), new PayrollBatch.Payout[](0), c);
     }
@@ -325,7 +406,7 @@ contract PayrollBatchTest is ClaimSigs {
             PayrollBatch.Payout[] memory p = _payouts1(address(usd6), bad[i], 1e6);
             ISignatureTransfer.PermitBatchTransferFrom memory permit = _oneToken(address(usd6), 1e6);
             bytes32 id = keccak256(abi.encode("bad", i));
-            bytes memory sig = _sign(permit, batch.witnessOf(id, p, _noClaims()), quorumPk);
+            bytes memory sig = _sign(permit, batch.witnessOf(address(treasury), id, p, _noClaims()), quorumPk);
             vm.expectRevert(abi.encodeWithSelector(PayrollBatch.BadRecipient.selector, bad[i]));
             batch.executePayroll(permit, address(treasury), sig, id, p, _noClaims());
         }
@@ -338,13 +419,13 @@ contract PayrollBatchTest is ClaimSigs {
         (t[1], a[1]) = (address(usd6), 1e6);
         ISignatureTransfer.PermitBatchTransferFrom memory dup = _permit(t, a);
         PayrollBatch.Payout[] memory p = _payouts1(address(usd6), alice, 1e6);
-        bytes memory sig = _sign(dup, batch.witnessOf(keccak256("u"), p, _noClaims()), quorumPk);
+        bytes memory sig = _sign(dup, batch.witnessOf(address(treasury), keccak256("u"), p, _noClaims()), quorumPk);
         vm.expectRevert(abi.encodeWithSelector(PayrollBatch.DuplicateToken.selector, address(usd6)));
         batch.executePayroll(dup, address(treasury), sig, keccak256("u"), p, _noClaims());
 
         ISignatureTransfer.PermitBatchTransferFrom memory only6 = _oneToken(address(usd6), 1e6);
         PayrollBatch.Payout[] memory p18 = _payouts1(address(fx18), alice, 1e6);
-        bytes memory sig2 = _sign(only6, batch.witnessOf(keccak256("u2"), p18, _noClaims()), quorumPk);
+        bytes memory sig2 = _sign(only6, batch.witnessOf(address(treasury), keccak256("u2"), p18, _noClaims()), quorumPk);
         vm.expectRevert(abi.encodeWithSelector(PayrollBatch.UnknownToken.selector, address(fx18)));
         batch.executePayroll(only6, address(treasury), sig2, keccak256("u2"), p18, _noClaims());
     }
@@ -363,7 +444,7 @@ contract PayrollBatchTest is ClaimSigs {
         for (uint256 i; i < 50; ++i) p[i] = PayrollBatch.Payout(address(usd6), address(uint160(0x1000 + i)), 100e6);
         for (uint256 i; i < 10; ++i) c[i] = PayrollBatch.ClaimDeposit(address(usd6), vm.addr(linkPk + i), 50e6);
         ISignatureTransfer.PermitBatchTransferFrom memory permit = _oneToken(address(usd6), 50 * 100e6 + 10 * 50e6);
-        bytes memory sig = _sign(permit, batch.witnessOf(keccak256("g"), p, c), quorumPk);
+        bytes memory sig = _sign(permit, batch.witnessOf(address(treasury), keccak256("g"), p, c), quorumPk);
         uint256 g = gasleft();
         batch.executePayroll(permit, address(treasury), sig, keccak256("g"), p, c);
         console2.log("gas executePayroll 50 payouts + 10 claims:", g - gasleft());
@@ -378,7 +459,7 @@ contract PayrollBatchTest is ClaimSigs {
 
         ISignatureTransfer.PermitBatchTransferFrom memory permit = _oneToken(address(outFee), 100e18);
         PayrollBatch.Payout[] memory p = _payouts1(address(outFee), alice, 100e18);
-        bytes memory sig = _sign(permit, batch.witnessOf(keccak256("f16"), p, _noClaims()), quorumPk);
+        bytes memory sig = _sign(permit, batch.witnessOf(address(treasury), keccak256("f16"), p, _noClaims()), quorumPk);
 
         vm.expectRevert(abi.encodeWithSelector(PayrollBatch.ShortReceipt.selector, address(outFee), 100e18, 99e18));
         batch.executePayroll(permit, address(treasury), sig, keccak256("f16"), p, _noClaims());
@@ -400,7 +481,7 @@ contract PayrollBatchTest is ClaimSigs {
         ISignatureTransfer.PermitBatchTransferFrom memory permit = _oneToken(address(usd6), 10e6);
         PayrollBatch.Payout[] memory p = _payouts1(address(usd6), alice, 10e6);
         bytes32 id = keccak256("f27");
-        bytes memory sig = _sign(permit, batch.witnessOf(id, p, _noClaims()), quorumPk);
+        bytes memory sig = _sign(permit, batch.witnessOf(address(treasury), id, p, _noClaims()), quorumPk);
         batch.executePayroll(permit, address(treasury), sig, id, p, _noClaims());
         assertEq(usd6.balanceOf(alice), 10e6);
         assertEq(usd6.balanceOf(address(batch)), 42);
@@ -427,7 +508,8 @@ contract PayrollBatchTest is ClaimSigs {
         PayrollBatch.ClaimDeposit[] memory c = new PayrollBatch.ClaimDeposit[](1);
         c[0] = PayrollBatch.ClaimDeposit(address(usd6), address(0), 1e6);
         ISignatureTransfer.PermitBatchTransferFrom memory permit = _oneToken(address(usd6), 1e6);
-        bytes memory sig = _sign(permit, batch.witnessOf(keccak256("f28"), new PayrollBatch.Payout[](0), c), quorumPk);
+        bytes memory sig =
+            _sign(permit, batch.witnessOf(address(treasury), keccak256("f28"), new PayrollBatch.Payout[](0), c), quorumPk);
         vm.expectRevert(PayrollBatch.ZeroLinkKey.selector);
         batch.executePayroll(permit, address(treasury), sig, keccak256("f28"), new PayrollBatch.Payout[](0), c);
     }
@@ -461,35 +543,322 @@ contract PayrollBatchTest is ClaimSigs {
         vm.etch(safe, hex"600080fd");
         vm.etch(canonicalPermit2, hex"600080fd");
 
-        vm.startPrank(safe);
-        (bool ok1, bytes memory r1) = create2Factory.call(
-            abi.encodePacked(
-                keccak256("bufi.claim-vault.deployer.v1"),
-                type(ClaimVaultDeployer).creationCode,
-                abi.encode(safe, mfaAuthorizer)
-            )
-        );
-        assertTrue(ok1);
-        assertEq(address(bytes20(r1)), 0xE57695e4CE920eB24d80697c3369aE80fa275E6a);
+        bytes32 deployerSalt = keccak256("bufi.claim-vault.deployer.v1");
+        bytes memory deployerInitCode =
+            abi.encodePacked(type(ClaimVaultDeployer).creationCode, abi.encode(safe, mfaAuthorizer));
+        address expectedDeployer =
+            vm.computeCreate2Address(deployerSalt, keccak256(deployerInitCode), create2Factory);
+        address expectedVault = vm.computeCreateAddress(expectedDeployer, 1);
 
-        PeanutV4 deployedVault = PeanutV4(payable(0xeA06BF5AD08b70E4c107f3925CBC618662f88965));
+        bytes32 batchSalt = keccak256("bufi.payroll-batch.v1");
+        bytes memory batchInitCode =
+            abi.encodePacked(type(PayrollBatch).creationCode, abi.encode(canonicalPermit2, expectedVault));
+        address expectedBatch = vm.computeCreate2Address(batchSalt, keccak256(batchInitCode), create2Factory);
+
+        vm.startPrank(safe);
+        (bool ok1, bytes memory r1) = create2Factory.call(abi.encodePacked(deployerSalt, deployerInitCode));
+        assertTrue(ok1);
+        assertEq(address(bytes20(r1)), expectedDeployer);
+
+        PeanutV4 deployedVault = PeanutV4(payable(expectedVault));
         assertEq(deployedVault.pendingOwner(), safe);
         deployedVault.acceptOwnership();
         assertEq(deployedVault.owner(), safe);
         assertEq(deployedVault.MFA_AUTHORIZER(), mfaAuthorizer);
 
-        (bool ok2, bytes memory r2) = create2Factory.call(
-            abi.encodePacked(
-                keccak256("bufi.payroll-batch.v1"),
-                type(PayrollBatch).creationCode,
-                abi.encode(canonicalPermit2, address(deployedVault))
-            )
-        );
+        (bool ok2, bytes memory r2) = create2Factory.call(abi.encodePacked(batchSalt, batchInitCode));
         assertTrue(ok2);
         PayrollBatch deployedBatch = PayrollBatch(address(bytes20(r2)));
-        assertEq(address(deployedBatch), 0xE9b96103Ddc1268F1184667F4c3E85Da75340E10);
+        assertEq(address(deployedBatch), expectedBatch);
         assertEq(address(deployedBatch.VAULT()), address(deployedVault));
         assertEq(address(deployedBatch.PERMIT2()), canonicalPermit2);
         vm.stopPrank();
+    }
+
+    // ------------------------------------------------------------------ BugPoCer remediations
+
+    function test_BugPoCer_5_2_14_payrollHashBindsFromOwner() public {
+        MockTreasury1271 treasuryB = new MockTreasury1271(vm.addr(quorumPk));
+        usd6.mint(address(treasuryB), 1_000_000e6);
+        vm.prank(vm.addr(quorumPk));
+        treasuryB.approveMax(address(usd6), address(PERMIT2));
+
+        PayrollBatch.Payout[] memory p = _payouts1(address(usd6), alice, 10e6);
+        ISignatureTransfer.PermitBatchTransferFrom memory permit = _oneToken(address(usd6), 10e6);
+        bytes32 id = keccak256("bugpocer-5-2-14");
+
+        // Zero owner rejected before state mutation.
+        vm.expectRevert(PayrollBatch.ZeroAddress.selector);
+        batch.executePayroll(permit, address(0), "", id, p, _noClaims());
+
+        bytes32 witnessA = batch.witnessOf(address(treasury), id, p, _noClaims());
+        bytes32 witnessB = batch.witnessOf(address(treasuryB), id, p, _noClaims());
+        assertTrue(witnessA != witnessB);
+
+        bytes memory sigForA = _sign(permit, witnessA, quorumPk);
+
+        // Witness signed for Treasury A must NOT execute against Treasury B even though both share quorumPk.
+        vm.expectRevert(bytes4(keccak256("InvalidContractSignature()")));
+        batch.executePayroll(permit, address(treasuryB), sigForA, id, p, _noClaims());
+        assertEq(usd6.balanceOf(address(treasuryB)), 1_000_000e6);
+        assertFalse(batch.payrollExecuted(address(treasuryB), id));
+
+        // Executing against Treasury A succeeds as intended.
+        batch.executePayroll(permit, address(treasury), sigForA, id, p, _noClaims());
+        assertEq(usd6.balanceOf(alice), 10e6);
+    }
+
+    function test_BugPoCer_5_2_12_cancelPayrollWithQuorumSignatureBlocksStaleExecution() public {
+        PayrollBatch.Payout[] memory stalePayouts = _payouts1(address(usd6), alice, 10e6);
+        ISignatureTransfer.PermitBatchTransferFrom memory stalePermit = _oneToken(address(usd6), 10e6);
+        bytes32 id = keccak256("bugpocer-5-2-12");
+        bytes memory staleSig = _sign(stalePermit, batch.witnessOf(address(treasury), id, stalePayouts, _noClaims()), quorumPk);
+
+        uint256 deadline = block.timestamp + 1 hours;
+        bytes32 digest = batch.cancelPayrollDigest(address(treasury), id, deadline);
+        bytes memory cancelSig = sign(quorumPk, digest);
+
+        // Zero address rejected.
+        vm.expectRevert(PayrollBatch.ZeroAddress.selector);
+        batch.cancelPayroll(address(0), id, deadline, cancelSig);
+
+        vm.expectEmit(true, true, false, false);
+        emit PayrollBatch.PayrollCancelled(id, address(treasury));
+        vm.prank(bob); // untrusted relayer submits valid quorum cancellation
+        batch.cancelPayroll(address(treasury), id, deadline, cancelSig);
+        assertTrue(batch.payrollExecuted(address(treasury), id));
+
+        // Stale payroll execution is now permanently blocked.
+        vm.expectRevert(PayrollBatch.AlreadyExecuted.selector);
+        batch.executePayroll(stalePermit, address(treasury), staleSig, id, stalePayouts, _noClaims());
+
+        // Re-cancelling the same payrollId reverts.
+        vm.expectRevert(PayrollBatch.AlreadyExecuted.selector);
+        batch.cancelPayroll(address(treasury), id, deadline, cancelSig);
+
+        // Corrected payroll with a fresh payrollId succeeds; then cancelling it reverts AlreadyExecuted.
+        bytes32 freshId = keccak256("bugpocer-5-2-12-fresh");
+        PayrollBatch.Payout[] memory correctedPayouts = _payouts1(address(usd6), bob, 12e6);
+        ISignatureTransfer.PermitBatchTransferFrom memory freshPermit = _oneToken(address(usd6), 12e6);
+        _run(freshPermit, freshId, correctedPayouts, _noClaims());
+        assertEq(usd6.balanceOf(bob), 12e6);
+
+        bytes memory freshCancelSig = sign(quorumPk, batch.cancelPayrollDigest(address(treasury), freshId, deadline));
+        vm.expectRevert(PayrollBatch.AlreadyExecuted.selector);
+        batch.cancelPayroll(address(treasury), freshId, deadline, freshCancelSig);
+    }
+
+    function test_BugPoCer_5_2_12_cancelPayrollRejectsExpiredAndWrongSigner() public {
+        uint256 startTs = 1_000;
+        uint256 deadline = 1_100;
+        vm.warp(startTs);
+        bytes32 id = keccak256("bugpocer-5-2-12-invalid");
+        bytes32 digest = batch.cancelPayrollDigest(address(treasury), id, deadline);
+
+        // Wrong signer rejected.
+        uint256 attackerPk = uint256(keccak256("attacker"));
+        bytes memory wrongSig = sign(attackerPk, digest);
+        vm.expectRevert(PayrollBatch.InvalidCancelSignature.selector);
+        batch.cancelPayroll(address(treasury), id, deadline, wrongSig);
+
+        // Valid signer over wrong payrollId rejected.
+        bytes memory wrongIdSig = sign(quorumPk, batch.cancelPayrollDigest(address(treasury), keccak256("other"), deadline));
+        vm.expectRevert(PayrollBatch.InvalidCancelSignature.selector);
+        batch.cancelPayroll(address(treasury), id, deadline, wrongIdSig);
+
+        // Expired cancellation rejected even with valid quorum signature.
+        bytes memory validSig = sign(quorumPk, digest);
+        vm.warp(deadline + 1);
+        vm.expectRevert(abi.encodeWithSelector(PayrollBatch.CancelExpired.selector, deadline, deadline + 1));
+        batch.cancelPayroll(address(treasury), id, deadline, validSig);
+        assertFalse(batch.payrollExecuted(address(treasury), id));
+    }
+
+    function test_BugPoCer_5_2_12_cancelPayrollDirectByOwner() public {
+        PayrollBatch.Payout[] memory p = _payouts1(address(usd6), alice, 10e6);
+        ISignatureTransfer.PermitBatchTransferFrom memory permit = _oneToken(address(usd6), 10e6);
+        bytes32 id = keccak256("bugpocer-5-2-12-direct");
+        bytes memory sig = _sign(permit, batch.witnessOf(address(treasury), id, p, _noClaims()), quorumPk);
+
+        vm.expectEmit(true, true, false, false);
+        emit PayrollBatch.PayrollCancelled(id, address(treasury));
+        vm.prank(address(treasury));
+        batch.cancelPayroll(address(treasury), id, 0, "");
+        assertTrue(batch.payrollExecuted(address(treasury), id));
+
+        vm.expectRevert(PayrollBatch.AlreadyExecuted.selector);
+        batch.executePayroll(permit, address(treasury), sig, id, p, _noClaims());
+    }
+
+    // ------------------------------------------------------------------ mutation hardening
+
+    function test_ClaimVaultDeployer_rejectsZeroAndContractAndEmitsEvent() public {
+        address mfa = makeAddr("mfa-eoa");
+        vm.expectRevert("ZERO OWNER");
+        new ClaimVaultDeployer(address(0), mfa);
+
+        vm.expectRevert("ZERO MFA AUTHORIZER");
+        new ClaimVaultDeployer(alice, address(0));
+
+        vm.expectRevert("MFA AUTHORIZER CANNOT BE CONTRACT");
+        new ClaimVaultDeployer(alice, address(usd6));
+
+        address expectedDeployer = vm.computeCreateAddress(address(this), vm.getNonce(address(this)));
+        address expectedVault = vm.computeCreateAddress(expectedDeployer, 1);
+        vm.expectEmit(true, true, true, true);
+        emit ClaimVaultDeployer.ClaimVaultDeployed(expectedVault, alice, mfa);
+        ClaimVaultDeployer deployer = new ClaimVaultDeployer(alice, mfa);
+        assertEq(address(deployer), expectedDeployer);
+        assertEq(PeanutV4(payable(expectedVault)).pendingOwner(), alice);
+        assertEq(PeanutV4(payable(expectedVault)).MFA_AUTHORIZER(), mfa);
+    }
+
+    function test_PayrollBatch_constructorRejectsZeroAddresses() public {
+        vm.expectRevert("ZERO ADDRESS");
+        new PayrollBatch(ISignatureTransfer(address(0)), IPeanutV4MFAVault(address(vault)));
+
+        vm.expectRevert("ZERO ADDRESS");
+        new PayrollBatch(PERMIT2, IPeanutV4MFAVault(address(0)));
+    }
+
+    function test_PayrollBatch_zeroAmountRevertsForPayoutAndClaim() public {
+        PayrollBatch.Payout[] memory p = _payouts1(address(usd6), alice, 0);
+        ISignatureTransfer.PermitBatchTransferFrom memory permit = _oneToken(address(usd6), 0);
+        vm.expectRevert(PayrollBatch.ZeroAmount.selector);
+        batch.executePayroll(permit, address(treasury), "", keccak256("z-p"), p, _noClaims());
+
+        PayrollBatch.ClaimDeposit[] memory c = new PayrollBatch.ClaimDeposit[](1);
+        c[0] = PayrollBatch.ClaimDeposit(address(usd6), vm.addr(linkPk), 0);
+        vm.expectRevert(PayrollBatch.ZeroAmount.selector);
+        batch.executePayroll(permit, address(treasury), "", keccak256("z-c"), new PayrollBatch.Payout[](0), c);
+    }
+
+    function test_PayrollBatch_maxLinesExact100SucceedsAndMixed101Reverts() public {
+        // 50 payouts + 51 claims = 101 lines reverts TooManyLines.
+        PayrollBatch.Payout[] memory p50 = new PayrollBatch.Payout[](50);
+        PayrollBatch.ClaimDeposit[] memory c51 = new PayrollBatch.ClaimDeposit[](51);
+        for (uint256 i; i < 50; ++i) p50[i] = PayrollBatch.Payout(address(usd6), alice, 1e6);
+        for (uint256 i; i < 51; ++i) c51[i] = PayrollBatch.ClaimDeposit(address(usd6), vm.addr(linkPk + i), 1e6);
+        vm.expectRevert(PayrollBatch.TooManyLines.selector);
+        batch.executePayroll(_oneToken(address(usd6), 101e6), address(treasury), "", keccak256("m101"), p50, c51);
+
+        // Exactly 100 lines succeeds.
+        PayrollBatch.Payout[] memory p100 = new PayrollBatch.Payout[](100);
+        for (uint256 i; i < 100; ++i) p100[i] = PayrollBatch.Payout(address(usd6), alice, 1e6);
+        _run(_oneToken(address(usd6), 100e6), keccak256("m100"), p100, _noClaims());
+        assertEq(usd6.balanceOf(alice), 100e6);
+    }
+
+    function test_PayrollBatch_emitsAllEventsAndExactClaimWindow() public {
+        uint256 startTs = 100 days;
+        vm.warp(startTs);
+        uint40 expectedUnlock = uint40(startTs) + batch.CLAIM_WINDOW();
+        assertEq(batch.CLAIM_WINDOW(), 30 days);
+
+        PayrollBatch.Payout[] memory payouts = _payouts1(address(usd6), alice, 25e6);
+        PayrollBatch.ClaimDeposit[] memory claims = new PayrollBatch.ClaimDeposit[](1);
+        claims[0] = PayrollBatch.ClaimDeposit(address(usd6), vm.addr(linkPk), 15e6);
+        bytes32 id = keccak256("events-window");
+
+        ISignatureTransfer.PermitBatchTransferFrom memory permit = _oneToken(address(usd6), 40e6);
+        bytes memory sig = _sign(permit, batch.witnessOf(address(treasury), id, payouts, claims), quorumPk);
+
+        vm.expectEmit(true, true, true, true);
+        emit PayrollBatch.PayrollPayout(id, address(usd6), alice, 25e6);
+        vm.expectEmit(true, true, true, true);
+        emit PayrollBatch.PayrollClaimDeposited(id, address(usd6), vm.addr(linkPk), 15e6, 0, expectedUnlock);
+        vm.expectEmit(true, true, false, true);
+        emit PayrollBatch.PayrollExecuted(id, address(treasury), 1, 1);
+
+        batch.executePayroll(permit, address(treasury), sig, id, payouts, claims);
+        assertEq(vault.getDeposit(0).reclaimableAfter, expectedUnlock);
+
+        vm.warp(expectedUnlock);
+        vm.prank(address(treasury));
+        vm.expectRevert("TOO EARLY TO RECLAIM");
+        vault.withdrawDepositSender(0);
+
+        vm.warp(uint256(expectedUnlock) + 1);
+        vm.prank(address(treasury));
+        vault.withdrawDepositSender(0);
+    }
+
+    function test_PayrollBatch_recipientWithPriorBalanceAndOverDeliveringTokensRevert() public {
+        // Recipient with non-zero prior balance verifies `- balBefore` (kills `+ balBefore` mutant).
+        usd6.mint(alice, 777);
+        _run(_oneToken(address(usd6), 10e6), keccak256("prior-bal"), _payouts1(address(usd6), alice, 10e6), _noClaims());
+        assertEq(usd6.balanceOf(alice), 10e6 + 777);
+
+        // Pull over-delivery (`received > owed[i]`): reverts ShortReceipt.
+        PBOverDeliverPullToken ovPull = new PBOverDeliverPullToken(address(batch));
+        ovPull.mint(address(treasury), 1_000e18);
+        vm.prank(vm.addr(quorumPk));
+        treasury.approveMax(address(ovPull), address(PERMIT2));
+        ISignatureTransfer.PermitBatchTransferFrom memory pPull = _oneToken(address(ovPull), 100e18);
+        PayrollBatch.Payout[] memory linesPull = _payouts1(address(ovPull), alice, 100e18);
+        bytes memory sigPull = _sign(pPull, batch.witnessOf(address(treasury), keccak256("ovp"), linesPull, _noClaims()), quorumPk);
+        vm.expectRevert(abi.encodeWithSelector(PayrollBatch.ShortReceipt.selector, address(ovPull), 100e18, 100e18 + 1));
+        batch.executePayroll(pPull, address(treasury), sigPull, keccak256("ovp"), linesPull, _noClaims());
+
+        // Payout over-delivery (`received > p.amount`): reverts ShortReceipt.
+        PBOverDeliverPayoutToken ovOut = new PBOverDeliverPayoutToken(address(batch));
+        ovOut.mint(address(treasury), 1_000e18);
+        vm.prank(vm.addr(quorumPk));
+        treasury.approveMax(address(ovOut), address(PERMIT2));
+        ISignatureTransfer.PermitBatchTransferFrom memory pOut = _oneToken(address(ovOut), 100e18);
+        PayrollBatch.Payout[] memory linesOut = _payouts1(address(ovOut), bob, 100e18);
+        bytes memory sigOut = _sign(pOut, batch.witnessOf(address(treasury), keccak256("ovo"), linesOut, _noClaims()), quorumPk);
+        vm.expectRevert(abi.encodeWithSelector(PayrollBatch.ShortReceipt.selector, address(ovOut), 100e18, 100e18 + 1));
+        batch.executePayroll(pOut, address(treasury), sigOut, keccak256("ovo"), linesOut, _noClaims());
+    }
+
+    function test_PayrollBatch_vaultDrainingPriorBalanceRevertsRetained() public {
+        PayrollBatch drainBatch = new PayrollBatch(PERMIT2, new PBDrainingVault());
+        PBDrainToken drn = new PBDrainToken();
+        drn.mint(address(treasury), 1_000e18);
+        drn.mint(address(drainBatch), 10); // pre-existing donation
+        vm.prank(vm.addr(quorumPk));
+        treasury.approveMax(address(drn), address(PERMIT2));
+
+        PayrollBatch.ClaimDeposit[] memory c = new PayrollBatch.ClaimDeposit[](1);
+        c[0] = PayrollBatch.ClaimDeposit(address(drn), vm.addr(linkPk), 50e18);
+        ISignatureTransfer.PermitBatchTransferFrom memory permit = _oneToken(address(drn), 50e18);
+        bytes32 witness = drainBatch.witnessOf(address(treasury), keccak256("drain"), new PayrollBatch.Payout[](0), c);
+
+        bytes32[] memory hashes = new bytes32[](1);
+        hashes[0] = keccak256(abi.encode(TOKEN_PERMISSIONS_TYPEHASH, address(drn), 50e18));
+        bytes32 typehash = keccak256(
+            abi.encodePacked(
+                "PermitBatchWitnessTransferFrom(TokenPermissions[] permitted,address spender,uint256 nonce,uint256 deadline,",
+                drainBatch.WITNESS_TYPE_STRING()
+            )
+        );
+        bytes32 structHash = keccak256(
+            abi.encode(typehash, keccak256(abi.encodePacked(hashes)), address(drainBatch), permit.nonce, permit.deadline, witness)
+        );
+        bytes memory sig = sign(quorumPk, keccak256(abi.encodePacked("\x19\x01", PERMIT2.DOMAIN_SEPARATOR(), structHash)));
+
+        vm.expectRevert(abi.encodeWithSelector(PayrollBatch.Retained.selector, address(drn)));
+        drainBatch.executePayroll(permit, address(treasury), sig, keccak256("drain"), new PayrollBatch.Payout[](0), c);
+    }
+
+    function test_PayrollBatch_reentrancyGuardBlocksExecuteReenteringCancel() public {
+        PBReentrantToken reToken = new PBReentrantToken(batch);
+        reToken.mint(address(treasury), 1_000e18);
+        vm.prank(vm.addr(quorumPk));
+        treasury.approveMax(address(reToken), address(PERMIT2));
+
+        bytes32 reenterId = keccak256("reenter-cancel");
+        uint256 cancelDeadline = block.timestamp + 1 hours;
+        bytes memory cancelSig = sign(quorumPk, batch.cancelPayrollDigest(address(treasury), reenterId, cancelDeadline));
+        reToken.arm(address(treasury), reenterId, cancelDeadline, cancelSig);
+
+        PayrollBatch.Payout[] memory p = _payouts1(address(reToken), alice, 10e18);
+        ISignatureTransfer.PermitBatchTransferFrom memory permit = _oneToken(address(reToken), 10e18);
+        bytes32 id = keccak256("reenter-outer");
+        bytes memory sig = _sign(permit, batch.witnessOf(address(treasury), id, p, _noClaims()), quorumPk);
+
+        vm.expectRevert("ReentrancyGuard: reentrant call");
+        batch.executePayroll(permit, address(treasury), sig, id, p, _noClaims());
     }
 }

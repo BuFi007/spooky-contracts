@@ -4,6 +4,8 @@ pragma solidity 0.8.23;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 
 import {ISignatureTransfer} from "../interfaces/ISignatureTransfer.sol";
 import {IPeanutV4MFAVault} from "../interfaces/IPeanutV4MFAVault.sol";
@@ -21,7 +23,7 @@ import {IPeanutV4MFAVault} from "../interfaces/IPeanutV4MFAVault.sol";
 ///              bearer link, refundable to the treasury after CLAIM_WINDOW.
 ///         Any token (6/8/18 decimals, non-3009, no-return ERC-20s). All-or-nothing. No
 ///         owner, no fees, no sweep, not upgradeable, and no BUFI key ever holds the funds.
-contract PayrollBatch is ReentrancyGuard {
+contract PayrollBatch is ReentrancyGuard, EIP712 {
     using SafeERC20 for IERC20;
 
     struct Payout {
@@ -37,11 +39,13 @@ contract PayrollBatch is ReentrancyGuard {
         uint256 amount;
     }
 
-    /// Permit2 witness. `payrollHash` = `payrollHash(payrollId, payouts, claims)`.
+    /// Permit2 witness. `payrollHash` = `payrollHash(from, payrollId, payouts, claims)`.
     string public constant WITNESS_TYPE_STRING =
         "PayrollWitness witness)PayrollWitness(bytes32 payrollId,bytes32 payrollHash)TokenPermissions(address token,uint256 amount)";
     bytes32 public constant PAYROLL_WITNESS_TYPEHASH =
         keccak256("PayrollWitness(bytes32 payrollId,bytes32 payrollHash)");
+    bytes32 public constant CANCEL_PAYROLL_TYPEHASH =
+        keccak256("CancelPayroll(address from,bytes32 payrollId,uint256 deadline)");
 
     /// Unclaimed links become refundable to the treasury after this (founder: 30 days).
     uint40 public constant CLAIM_WINDOW = 30 days;
@@ -57,6 +61,7 @@ contract PayrollBatch is ReentrancyGuard {
     event PayrollExecuted(
         bytes32 indexed payrollId, address indexed from, uint256 payoutCount, uint256 claimCount
     );
+    event PayrollCancelled(bytes32 indexed payrollId, address indexed from);
     event PayrollPayout(
         bytes32 indexed payrollId, address indexed token, address indexed recipient, uint256 amount
     );
@@ -69,9 +74,12 @@ contract PayrollBatch is ReentrancyGuard {
         uint40 reclaimableAfter
     );
 
+    error ZeroAddress();
     error EmptyPayroll();
     error TooManyLines();
     error AlreadyExecuted();
+    error CancelExpired(uint256 deadline, uint256 now_);
+    error InvalidCancelSignature();
     error UnknownToken(address token);
     error DuplicateToken(address token);
     error PermittedAmountMismatch(address token, uint256 permitted, uint256 owed);
@@ -81,31 +89,59 @@ contract PayrollBatch is ReentrancyGuard {
     error ZeroLinkKey();
     error ZeroAmount();
 
-    constructor(ISignatureTransfer permit2, IPeanutV4MFAVault vault) {
+    constructor(ISignatureTransfer permit2, IPeanutV4MFAVault vault) EIP712("PayrollBatch", "1") {
         require(address(permit2) != address(0) && address(vault) != address(0), "ZERO ADDRESS");
         PERMIT2 = permit2;
         VAULT = vault;
     }
 
-    /// The commitment the quorum signs (inside the Permit2 witness). Bound to this chain and
-    /// this contract so a signature cannot be replayed on another deployment.
+    /// The commitment the quorum signs (inside the Permit2 witness). Bound to this chain,
+    /// this contract, and `from` so a signature cannot be replayed across treasuries or deployments.
     function payrollHash(
+        address from,
         bytes32 payrollId,
         Payout[] calldata payouts,
         ClaimDeposit[] calldata claims
     ) public view returns (bytes32) {
-        return keccak256(abi.encode(block.chainid, address(this), payrollId, payouts, claims));
+        return keccak256(abi.encode(block.chainid, address(this), from, payrollId, payouts, claims));
     }
 
     /// The Permit2 witness value for a payroll.
     function witnessOf(
+        address from,
         bytes32 payrollId,
         Payout[] calldata payouts,
         ClaimDeposit[] calldata claims
     ) public view returns (bytes32) {
         return keccak256(
-            abi.encode(PAYROLL_WITNESS_TYPEHASH, payrollId, payrollHash(payrollId, payouts, claims))
+            abi.encode(PAYROLL_WITNESS_TYPEHASH, payrollId, payrollHash(from, payrollId, payouts, claims))
         );
+    }
+
+    function cancelPayrollDigest(address from, bytes32 payrollId, uint256 deadline)
+        public
+        view
+        returns (bytes32)
+    {
+        return _hashTypedDataV4(keccak256(abi.encode(CANCEL_PAYROLL_TYPEHASH, from, payrollId, deadline)));
+    }
+
+    function cancelPayroll(
+        address from,
+        bytes32 payrollId,
+        uint256 deadline,
+        bytes calldata signature
+    ) external nonReentrant {
+        if (from == address(0)) revert ZeroAddress();
+        if (payrollExecuted[from][payrollId]) revert AlreadyExecuted();
+        if (msg.sender != from) {
+            if (block.timestamp > deadline) revert CancelExpired(deadline, block.timestamp);
+            if (!SignatureChecker.isValidSignatureNow(from, cancelPayrollDigest(from, payrollId, deadline), signature)) {
+                revert InvalidCancelSignature();
+            }
+        }
+        payrollExecuted[from][payrollId] = true;
+        emit PayrollCancelled(payrollId, from);
     }
 
     function executePayroll(
@@ -116,6 +152,7 @@ contract PayrollBatch is ReentrancyGuard {
         Payout[] calldata payouts,
         ClaimDeposit[] calldata claims
     ) external nonReentrant {
+        if (from == address(0)) revert ZeroAddress();
         uint256 lines = payouts.length + claims.length;
         if (lines == 0) revert EmptyPayroll();
         if (lines > MAX_LINES) revert TooManyLines();
@@ -124,7 +161,7 @@ contract PayrollBatch is ReentrancyGuard {
 
         uint256[] memory owed = _owedPerToken(permit, payouts, claims);
         uint256[] memory before =
-            _pull(permit, from, signature, witnessOf(payrollId, payouts, claims), owed);
+            _pull(permit, from, signature, witnessOf(from, payrollId, payouts, claims), owed);
         _payAll(payrollId, payouts);
         _depositClaims(payrollId, from, claims);
         _assertNoRetention(permit, before);
