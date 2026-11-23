@@ -58,9 +58,10 @@ contract CctpDepositForwarderForkTest is Test {
         for (uint256 i; i < logs.length; ++i) {
             if (logs[i].emitter != TOKEN_MESSENGER_V2 || logs[i].topics[0] != DEPOSIT_FOR_BURN_TOPIC) continue;
             found = true;
+            bool effectiveFast = fast && bps > 0;
             assertEq(address(uint160(uint256(logs[i].topics[1]))), USDC, "burnToken");
             assertEq(address(uint160(uint256(logs[i].topics[2]))), fwd, "depositor");
-            assertEq(uint32(uint256(logs[i].topics[3])), fast ? 1000 : 2000, "minFinalityThreshold");
+            assertEq(uint32(uint256(logs[i].topics[3])), effectiveFast ? 1000 : 2000, "minFinalityThreshold");
             (
                 uint256 amt,
                 bytes32 mintRecipient,
@@ -74,7 +75,7 @@ contract CctpDepositForwarderForkTest is Test {
             assertEq(destinationDomain, domain, "destinationDomain");
             assertEq(destinationCaller, caller_, "destinationCaller");
             assertEq(fee, maxFee, "maxFee");
-            assertEq(fee, fast ? (amount * bps + 9_999) / 10_000 : 0, "maxFee formula");
+            assertEq(fee, effectiveFast ? (amount * bps) / 10_000 : 0, "maxFee formula");
             assertEq(
                 keccak256(hookData),
                 keccak256(abi.encode(keccak256("bufi.cctp-deposit-forwarder.v1"), COMMITMENT)),

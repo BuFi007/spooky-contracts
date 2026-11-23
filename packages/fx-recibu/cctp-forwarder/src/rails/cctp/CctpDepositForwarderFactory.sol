@@ -74,6 +74,9 @@ contract CctpDepositForwarderFactory {
     /// @notice mintRecipient must be non-zero.
     error ZeroMintRecipient();
 
+    /// @notice mintRecipient has non-zero upper 96 bits on an EVM destination domain.
+    error NonCanonicalMintRecipient(bytes32 mintRecipient);
+
     /// @notice documentCommitment must be non-zero.
     error ZeroDocumentCommitment();
 
@@ -268,6 +271,7 @@ contract CctpDepositForwarderFactory {
             revert UnsupportedDomain(destinationDomain);
         }
         if (mintRecipient == bytes32(0)) revert ZeroMintRecipient();
+        if (uint256(mintRecipient) >> 160 != 0) revert NonCanonicalMintRecipient(mintRecipient);
         if (uint256(destinationCaller) >> 160 != 0) revert NonCanonicalDestinationCaller(destinationCaller);
         if (documentCommitment == bytes32(0)) revert ZeroDocumentCommitment();
         if (maxFastFeeBps > MAX_FAST_FEE_BPS_CAP) {

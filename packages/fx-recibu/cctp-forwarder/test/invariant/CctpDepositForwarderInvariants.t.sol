@@ -70,19 +70,7 @@ contract ForwarderHandler is Test {
         uint256 after_ = messenger.callCount();
 
         if (after_ > before) {
-            MockTokenMessengerV2.BurnCall memory call = messenger.getCall(after_ - 1);
-            totalBurned += call.amount;
-            burnHistory.push(
-                BurnRecord({
-                    amount: call.amount,
-                    maxFee: call.maxFee,
-                    destinationDomain: call.destinationDomain,
-                    mintRecipient: call.mintRecipient,
-                    destinationCaller: call.destinationCaller,
-                    documentCommitment: _extractCommitment(call.hookData),
-                    hookData: call.hookData
-                })
-            );
+            _recordCall(messenger.getCall(after_ - 1));
         }
     }
 
@@ -97,20 +85,45 @@ contract ForwarderHandler is Test {
         uint256 after_ = messenger.callCount();
 
         if (after_ > before) {
-            MockTokenMessengerV2.BurnCall memory call = messenger.getCall(after_ - 1);
-            totalBurned += call.amount;
-            burnHistory.push(
-                BurnRecord({
-                    amount: call.amount,
-                    maxFee: call.maxFee,
-                    destinationDomain: call.destinationDomain,
-                    mintRecipient: call.mintRecipient,
-                    destinationCaller: call.destinationCaller,
-                    documentCommitment: _extractCommitment(call.hookData),
-                    hookData: call.hookData
-                })
-            );
+            _recordCall(messenger.getCall(after_ - 1));
         }
+    }
+
+    /// @notice Flush a bounded chunk via flushUpTo, from an arbitrary caller.
+    function flushUpTo(uint256 maxAmount, bool fast, address caller) external {
+        uint256 bal = usdc.balanceOf(address(forwarder));
+        if (bal == 0) return;
+
+        // Exercise both small chunks (where ceil rounding diverged most) and arbitrary slices up to balance.
+        if (maxAmount % 2 == 0) {
+            maxAmount = bound(maxAmount, 1, 10_000);
+        } else {
+            maxAmount = bound(maxAmount, 1, bal + 1);
+        }
+
+        uint256 before = messenger.callCount();
+        vm.prank(caller);
+        forwarder.flushUpTo(maxAmount, fast);
+        uint256 after_ = messenger.callCount();
+
+        if (after_ > before) {
+            _recordCall(messenger.getCall(after_ - 1));
+        }
+    }
+
+    function _recordCall(MockTokenMessengerV2.BurnCall memory call) internal {
+        totalBurned += call.amount;
+        burnHistory.push(
+            BurnRecord({
+                amount: call.amount,
+                maxFee: call.maxFee,
+                destinationDomain: call.destinationDomain,
+                mintRecipient: call.mintRecipient,
+                destinationCaller: call.destinationCaller,
+                documentCommitment: _extractCommitment(call.hookData),
+                hookData: call.hookData
+            })
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -152,7 +165,8 @@ contract ForwarderHandler is Test {
  *   Invariant C: totalBurned + forwarder.balanceOf == totalDeposited.
  *   Invariant D: Every recorded maxFee is strictly < amount for that burn.
  *   Invariant E: Standard-path burns always have maxFee == 0.
- *   Invariant F: Standard-path burns always have minFinalityThreshold == 2000.
+ *   Invariant F: Fast-path burns follow floor(amount * BPS / 10_000) and standard burns use threshold 2000.
+ *   Invariant G: Cumulative fast-path maxFee never exceeds floor(totalFastBurned * BPS / 10_000).
  */
 contract CctpDepositForwarderInvariantTest is StdInvariant, Test {
     CctpDepositForwarder internal impl;
@@ -252,10 +266,32 @@ contract CctpDepositForwarderInvariantTest is StdInvariant, Test {
             // Fast burns have threshold == 1000
             if (call.minFinalityThreshold == forwarder.FAST_FINALITY_THRESHOLD()) {
                 assertLt(call.maxFee, call.amount, "Invariant F: fast path maxFee >= amount");
-                uint256 expected = (call.amount * BPS + 9_999) / 10_000;
+                uint256 expected = (call.amount * BPS) / 10_000;
                 if (expected >= call.amount) expected = call.amount - 1;
                 assertEq(call.maxFee, expected, "Invariant F: fast fee formula");
             }
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // Invariant G: cumulative fast-path maxFee never exceeds floor(totalFastBurned * BPS / 10_000)
+    // -----------------------------------------------------------------------
+
+    function invariant_cumulativeFastMaxFeeWithinBpsCap() public view {
+        uint256 totalFastBurned;
+        uint256 totalFastMaxFee;
+        uint256 n = messenger.callCount();
+        for (uint256 i = 0; i < n; i++) {
+            MockTokenMessengerV2.BurnCall memory call = messenger.getCall(i);
+            if (call.minFinalityThreshold == forwarder.FAST_FINALITY_THRESHOLD()) {
+                totalFastBurned += call.amount;
+                totalFastMaxFee += call.maxFee;
+            }
+        }
+        assertLe(
+            totalFastMaxFee,
+            (totalFastBurned * BPS) / 10_000,
+            "Invariant G: cumulative fast maxFee exceeds floor(totalFastBurned * BPS / 10_000)"
+        );
     }
 }

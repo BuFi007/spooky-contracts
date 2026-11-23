@@ -111,7 +111,7 @@ contract CctpDepositForwarder is ReentrancyGuardTransient {
     /**
      * @notice Emitted when a successful flush completes.
      * @param amount              Total USDC flushed (before fees).
-     * @param fast                True if fast-finality path was used.
+     * @param fast                True if fast-finality path was used (always false when maxFastFeeBps == 0).
      * @param maxFee              Maximum fee paid (0 for standard path).
      * @param destinationDomain   CCTP destination domain.
      * @param mintRecipient       Destination mint recipient (bytes32).
@@ -169,14 +169,14 @@ contract CctpDepositForwarder is ReentrancyGuardTransient {
      * @dev Permissionless — anyone may call this.
      *      Uses ReentrancyGuardTransient (EIP-1153) for gas-efficient reentrancy protection.
      *
-     * @param fast  If true, use fast-finality path (FAST_FINALITY_THRESHOLD, non-zero maxFee).
-     *              If false, use standard-finality path (STANDARD_FINALITY_THRESHOLD, maxFee = 0).
+     * @param fast  If true and maxFastFeeBps > 0, use fast-finality path (FAST_FINALITY_THRESHOLD).
+     *              Otherwise, use standard-finality path (STANDARD_FINALITY_THRESHOLD, maxFee = 0).
      *
      * @return amount  The USDC amount flushed.
      * @return maxFee  The maxFee passed to depositForBurnWithHook (0 for standard path).
      */
     function flush(bool fast) external nonReentrant onlyClone returns (uint256 amount, uint256 maxFee) {
-        ForwarderConfig memory cfg = config();
+        ForwarderConfig memory cfg = _config();
         uint256 balanceBefore = IERC20(cfg.usdc).balanceOf(address(this));
         (amount, maxFee) = _flushAmount(cfg, balanceBefore, balanceBefore, fast);
     }
@@ -192,7 +192,7 @@ contract CctpDepositForwarder is ReentrancyGuardTransient {
         returns (uint256 amount, uint256 maxFee)
     {
         if (maxAmount < 1) revert NothingToFlush();
-        ForwarderConfig memory cfg = config();
+        ForwarderConfig memory cfg = _config();
         uint256 balanceBefore = IERC20(cfg.usdc).balanceOf(address(this));
         uint256 toFlush = maxAmount < balanceBefore ? maxAmount : balanceBefore;
         (amount, maxFee) = _flushAmount(cfg, balanceBefore, toFlush, fast);
@@ -205,8 +205,9 @@ contract CctpDepositForwarder is ReentrancyGuardTransient {
         amount = amountToFlush;
         if (amount < 1) revert NothingToFlush();
 
+        bool effectiveFast = fast && cfg.maxFastFeeBps > 0;
         uint32 threshold;
-        if (fast) {
+        if (effectiveFast) {
             maxFee = _computeMaxFee(amount, cfg.maxFastFeeBps);
             threshold = FAST_FINALITY_THRESHOLD;
         } else {
@@ -214,10 +215,8 @@ contract CctpDepositForwarder is ReentrancyGuardTransient {
             threshold = STANDARD_FINALITY_THRESHOLD;
         }
 
-        // Approve exactly `amount` so the messenger can pull it.
         SafeERC20.forceApprove(IERC20(cfg.usdc), cfg.tokenMessenger, amount);
 
-        // Call the messenger. The real TokenMessengerV2 will transferFrom(this, amount) then burn.
         ITokenMessengerV2(cfg.tokenMessenger)
             .depositForBurnWithHook(
                 amount,
@@ -230,7 +229,6 @@ contract CctpDepositForwarder is ReentrancyGuardTransient {
                 abi.encode(FORWARDER_MAGIC, cfg.documentCommitment)
             );
 
-        // Post-conditions: both must hold or the whole tx reverts.
         if (IERC20(cfg.usdc).allowance(address(this), cfg.tokenMessenger) > 0) {
             revert AllowanceNotConsumed();
         }
@@ -240,7 +238,7 @@ contract CctpDepositForwarder is ReentrancyGuardTransient {
             revert BalanceNotBurned();
         }
 
-        emit Flushed(amount, fast, maxFee, cfg.destinationDomain, cfg.mintRecipient, cfg.documentCommitment);
+        emit Flushed(amount, effectiveFast, maxFee, cfg.destinationDomain, cfg.mintRecipient, cfg.documentCommitment);
     }
 
     // -------------------------------------------------------------------------
@@ -251,15 +249,14 @@ contract CctpDepositForwarder is ReentrancyGuardTransient {
      * @notice Returns all seven immutable configuration parameters of this clone.
      */
     function config() public view onlyClone returns (ForwarderConfig memory cfg) {
-        bytes memory args = Clones.fetchCloneArgs(address(this));
-        cfg = _decodeArgs(args);
+        cfg = _config();
     }
 
     /**
      * @notice Returns the current USDC balance of this forwarder (i.e. the pending deposit).
      */
     function pendingAmount() external view onlyClone returns (uint256) {
-        ForwarderConfig memory cfg = config();
+        ForwarderConfig memory cfg = _config();
         return IERC20(cfg.usdc).balanceOf(address(this));
     }
 
@@ -274,13 +271,18 @@ contract CctpDepositForwarder is ReentrancyGuardTransient {
      */
     function quoteMaxFee(uint256 amount, bool fast) external view onlyClone returns (uint256 maxFeeOut) {
         if (!fast) return 0;
-        ForwarderConfig memory cfg = config();
+        ForwarderConfig memory cfg = _config();
         return _computeMaxFee(amount, cfg.maxFastFeeBps);
     }
 
     // -------------------------------------------------------------------------
     // Internal helpers
     // -------------------------------------------------------------------------
+
+    function _config() internal view returns (ForwarderConfig memory cfg) {
+        bytes memory args = Clones.fetchCloneArgs(address(this));
+        cfg = _decodeArgs(args);
+    }
 
     /**
      * @dev Decode the 142-byte immutable args into a ForwarderConfig.
@@ -342,13 +344,14 @@ contract CctpDepositForwarder is ReentrancyGuardTransient {
 
     /**
      * @dev Compute maxFee for the fast path:
-     *        maxFee = ceil(amount * bps / 10_000)
-     *      Special case: if the computed maxFee >= amount, clamp to amount - 1
-     *      (so at least 1 unit always passes through; if amount == 1 this gives maxFee = 0).
+     *        maxFee = floor(amount * bps / 10_000)
+     *      Floor rounding is superadditive across chunked flushUpTo calls, preventing cap bypass.
+     *      Special case: if a non-factory clone carries bps >= 10_000 and maxFee >= amount, clamp
+     *      to amount - 1 so at least 1 unit always passes through (0 when amount == 1).
      */
     function _computeMaxFee(uint256 amount, uint16 bps) internal pure returns (uint256 maxFee) {
         if (amount < 1) return 0;
-        maxFee = Math.mulDiv(amount, bps, 10_000, Math.Rounding.Ceil);
+        maxFee = Math.mulDiv(amount, bps, 10_000, Math.Rounding.Floor);
         if (maxFee >= amount) {
             maxFee = amount - 1;
         }
