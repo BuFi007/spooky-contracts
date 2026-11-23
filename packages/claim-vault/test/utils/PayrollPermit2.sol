@@ -53,12 +53,13 @@ abstract contract PayrollPermit2 is ClaimSigs {
     function _signPayroll(
         PayrollBatch batch,
         ISignatureTransfer.PermitBatchTransferFrom memory p,
+        address from,
         bytes32 payrollId,
         PayrollBatch.Payout[] memory payouts,
         PayrollBatch.ClaimDeposit[] memory claims,
         uint256 pk
     ) internal view returns (bytes memory) {
-        bytes32 witness = batch.witnessOf(payrollId, payouts, claims);
+        bytes32 witness = batch.witnessOf(from, payrollId, payouts, claims);
         bytes32[] memory hashes = new bytes32[](p.permitted.length);
         for (uint256 i; i < p.permitted.length; ++i) {
             hashes[i] = keccak256(abi.encode(TOKEN_PERMISSIONS_TYPEHASH, p.permitted[i].token, p.permitted[i].amount));

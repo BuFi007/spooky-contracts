@@ -18,8 +18,11 @@ pragma solidity ^0.8.23;
 //   (1) MFA_AUTHORIZER is no longer a hardcoded constant. It is set in the constructor
 //       and rotated through a two-step handover (owner proposes, the new authorizer
 //       accepts), with the owner itself held behind OpenZeppelin Ownable2Step.
-//   (2) `reclaimableAfter` is enforced for EVERY deposit (upstream: address-bound only),
-//       so a bearer link cannot be pulled back before its window. 2026-09-23, founder.
+//   (2) `reclaimableAfter` is enforced on every deposit when non-zero (upstream:
+//       address-bound only): BUFI sets a reclaim window via `makeCustomDeposit` /
+//       `PayrollBatch` so bearer links cannot be pulled back early, while deprecated
+//       upstream v4.4 entry points retain `reclaimableAfter == 0` (immediately
+//       reclaimable) for SDK compatibility. 2026-09-23, founder.
 //   Security remediation on 2026-10-08: custom EIP-3009 authorizations commit to all
 //   custody parameters; ERC20 deposits require exact token receipt; ECO claims pay
 //   the authorized recipient. These changes require a fresh vault deployment.
@@ -97,7 +100,7 @@ contract PeanutV4 is IERC721Receiver, IERC1155Receiver, ReentrancyGuard, Ownable
     // Now a storage variable. The auto-generated getter keeps the name and signature
     // `MFA_AUTHORIZER() returns (address)`; its ABI stateMutability changes pure -> view.
     address public MFA_AUTHORIZER;
-    // BUFI: proposed next authorizer; becomes MFA_AUTHORIZER only when it calls acceptMFAAuthorizer().
+    // BUFI: proposed next authorizer; becomes MFA_AUTHORIZER only when it calls acceptMFAAuthorizer(bytes).
     address public pendingMFAAuthorizer;
 
     struct EIP712Domain {
@@ -141,6 +144,7 @@ contract PeanutV4 is IERC721Receiver, IERC1155Receiver, ReentrancyGuard, Ownable
             ecoAddress = address(0);
         }
         require(_mfaAuthorizer != address(0), "ZERO MFA AUTHORIZER"); // BUFI
+        require(_mfaAuthorizer.code.length == 0, "MFA AUTHORIZER CANNOT BE CONTRACT"); // BUFI
         MFA_AUTHORIZER = _mfaAuthorizer; // BUFI
         emit MFAAuthorizerTransferred(address(0), _mfaAuthorizer); // BUFI
         DOMAIN_SEPARATOR = hash(
@@ -827,7 +831,9 @@ contract PeanutV4 is IERC721Receiver, IERC1155Receiver, ReentrancyGuard, Ownable
     }
 
     /**
-     * @notice Function to allow a sender to withdraw their deposit after 24 hours
+     * @notice Function to allow a sender to withdraw their deposit after reclaimableAfter
+     * @dev Deposits with `reclaimableAfter == 0` (including deprecated upstream v4.4 entry
+     *      points kept for Peanut SDK compatibility) are immediately reclaimable.
      * @param _index uint256 index of the deposit
      * @param _senderAddress the address of the depositor
      * @return bool true if successful
@@ -898,11 +904,12 @@ contract PeanutV4 is IERC721Receiver, IERC1155Receiver, ReentrancyGuard, Ownable
 
     /**
      * @notice BUFI: Step 1 of rotating the MFA authorizer. Only the owner.
-     * @dev Passing address(0) cancels a pending rotation. The current authorizer stays
-     *      in force until the proposed one calls acceptMFAAuthorizer().
+     * @dev Use cancelMFAAuthorizerTransfer() to cancel a pending rotation. The current authorizer
+     *      stays in force until the proposed EOA calls acceptMFAAuthorizer(bytes).
      */
     function transferMFAAuthorizer(address _newAuthorizer) external onlyOwner {
         require(_newAuthorizer != address(0), "ZERO MFA AUTHORIZER");
+        require(_newAuthorizer.code.length == 0, "MFA AUTHORIZER CANNOT BE CONTRACT");
         pendingMFAAuthorizer = _newAuthorizer;
         emit MFAAuthorizerTransferStarted(MFA_AUTHORIZER, _newAuthorizer);
     }
@@ -912,13 +919,29 @@ contract PeanutV4 is IERC721Receiver, IERC1155Receiver, ReentrancyGuard, Ownable
         emit MFAAuthorizerTransferStarted(MFA_AUTHORIZER, address(0));
     }
 
+    function mfaAcceptanceDigest(address _newAuthorizer) public view returns (bytes32) {
+        return ECDSA.toEthSignedMessageHash(
+            keccak256(
+                abi.encodePacked(
+                    PEANUT_SALT,
+                    block.chainid,
+                    address(this),
+                    "ACCEPT_MFA_AUTHORIZER",
+                    _newAuthorizer
+                )
+            )
+        );
+    }
+
     /**
-     * @notice BUFI: Step 2. The proposed authorizer accepts, proving it controls the key.
+     * @notice BUFI: Step 2. The proposed authorizer accepts with an ECDSA key proof.
      *         From this block on, MFA signatures by the previous authorizer are rejected.
      */
-    function acceptMFAAuthorizer() external {
+    function acceptMFAAuthorizer(bytes calldata _signature) external {
         address _newAuthorizer = pendingMFAAuthorizer;
         require(_newAuthorizer != address(0) && msg.sender == _newAuthorizer, "NOT THE PENDING MFA AUTHORIZER");
+        require(_newAuthorizer.code.length == 0, "MFA AUTHORIZER CANNOT BE CONTRACT");
+        require(getSigner(mfaAcceptanceDigest(_newAuthorizer), _signature) == _newAuthorizer, "INVALID MFA KEY PROOF");
         address _previous = MFA_AUTHORIZER;
         MFA_AUTHORIZER = _newAuthorizer;
         delete pendingMFAAuthorizer;
