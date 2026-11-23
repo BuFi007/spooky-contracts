@@ -59,9 +59,7 @@ tests skipped without RPC). Solar emits different bytecode from solc. Solar 0.2
 - The getter `MFA_AUTHORIZER() returns (address)` is unchanged. Its ABI `stateMutability` was
   already `view` upstream, because solc emits `view` for public constants too, so the diff tool
   reports it as identical.
-- Rotation is two-step: `transferMFAAuthorizer(new)` (onlyOwner; `address(0)` cancels) then
-  `acceptMFAAuthorizer()` called **by the new authorizer**. This proves key control before the
-  switch. Old signatures die at acceptance.
+- Rotation is two-step: `transferMFAAuthorizer(new)` (onlyOwner; rejects `address(0)` and contracts; `cancelMFAAuthorizerTransfer()` cancels) then `acceptMFAAuthorizer(bytes _signature)` called **by the new EOA authorizer** with an ECDSA signature over `mfaAcceptanceDigest(new)`. This proves ECDSA key control (and rejects contract authorizers that could never pass `ECDSA.recover`) before the switch. Old signatures die at acceptance.
 - Owner is OpenZeppelin `Ownable2Step` (`transferOwnership` + `acceptOwnership`).
 - Events: `MFAAuthorizerTransferStarted(prev, new)`, `MFAAuthorizerTransferred(prev, new)` (also
   emitted at construction), plus OZ `OwnershipTransferStarted` / `OwnershipTransferred`.
@@ -74,9 +72,11 @@ default) would freeze rotation. The authorizer at that moment stays in force.
 ABI delta against SDK v4.4 (`node abi/abi-diff.mjs abi/peanut-sdk-0.6.2-v4.4.abi.json abi/bufi-PeanutV4.4.abi.json`):
 
 - the constructor gains `address _mfaAuthorizer` (deploy-time only; the SDK never deploys)
+- `onERC721Received`, `onERC1155Received`, and `onERC1155BatchReceived` are `view` (same 4-byte selectors; no state writes)
 - added: `owner`, `pendingOwner`, `transferOwnership`, `acceptOwnership`, `renounceOwnership`,
-  `pendingMFAAuthorizer`, `transferMFAAuthorizer`, `acceptMFAAuthorizer`, and the 4 events above
-- nothing is removed or altered
+  `pendingMFAAuthorizer`, `transferMFAAuthorizer`, `cancelMFAAuthorizerTransfer`,
+  `mfaAcceptanceDigest(address)`, `acceptMFAAuthorizer(bytes)`, and the 4 events above
+- nothing used by the SDK claim/deposit surface is removed
 
 ## Build, test
 
@@ -116,20 +116,13 @@ signs a Permit2 `PermitBatchWitnessTransferFrom` (ERC-1271 against the treasury)
 
 ```
 WITNESS_TYPE_STRING = "PayrollWitness witness)PayrollWitness(bytes32 payrollId,bytes32 payrollHash)TokenPermissions(address token,uint256 amount)"
-payrollHash = keccak256(abi.encode(chainId, PayrollBatch, payrollId, Payout[] payouts, ClaimDeposit[] claims))
+payrollHash = keccak256(abi.encode(chainId, PayrollBatch, from, payrollId, Payout[] payouts, ClaimDeposit[] claims))
 witness     = keccak256(abi.encode(keccak256("PayrollWitness(bytes32 payrollId,bytes32 payrollHash)"), payrollId, payrollHash))
 Payout       = (address token, address recipient, uint256 amount)
 ClaimDeposit = (address token, address linkPubKey20, uint256 amount)
 ```
 
-`payrollHash()` / `witnessOf()` are public views — the app should read them rather than
-re-derive. `executePayroll(permit, treasury, signature, payrollId, payouts, claims)` then pulls
-exactly the permitted amounts (balance-delta checked: fee-on-transfer reverts), pays every
-payout, deposits each claim into the vault as an MFA bearer link with reclaimer = treasury and
-`reclaimableAfter = now + 30 days`, and reverts on any net retention. One execution per
-(treasury, payrollId) on top of the Permit2 nonce. Per-token permitted amount must equal the
-sum of its lines; tokens must be unique; zero link keys, zero amounts, and recipients 0 /
-PayrollBatch / vault are rejected. Max 100 lines.
+`payrollHash(address from, ...)` and `witnessOf(address from, ...)` are public views, binding `from` (the treasury) inside the hash so off-chain tooling should read them rather than re-derive. `executePayroll(permit, treasury, signature, payrollId, payouts, claims)` pulls exact permitted amounts, verifies both pull and recipient balance deltas (reverting on fee-on-transfer or short-paying tokens), deposits each claim into the vault as an MFA bearer link with reclaimer = treasury and `reclaimableAfter = now + 30 days`, and reverts on any net retention. `cancelPayroll(from, payrollId, deadline, signature)` lets a treasury cancel an unexecuted `payrollId` directly (`msg.sender == from`) or via an EIP-712 signature over `cancelPayrollDigest(from, payrollId, deadline)` (supporting ERC-1271 MSCAs whose AddressBook blocks direct Permit2 nonce cancellation). One execution per `(treasury, payrollId)` on top of the Permit2 nonce. Per-token permitted amount must equal the sum of its lines; tokens must be unique; zero link keys, zero amounts, and recipients 0 / PayrollBatch / vault are rejected. Max 100 lines.
 
 Gas (forge): 50 payouts + 10 claims ≈ 3.34M.
 
