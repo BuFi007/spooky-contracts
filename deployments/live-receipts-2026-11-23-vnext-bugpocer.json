@@ -1,0 +1,384 @@
+{
+  "release": "vnext-bugpocer",
+  "date": "2026-11-23",
+  "sourceBranch": "fix/bugpocer-audit-remediation",
+  "verification": {
+    "sourcify": "37/37 exact_match (5042: 22/22, 43114: 10/10, 8453: 5/5)",
+    "snowtrace": "10/10 verified (43114 via Routescan)",
+    "script": "script/verify_vnext_contracts.py"
+  },
+  "transactions": {
+    "arc-5042-00-hotfix-5-2-2": {
+      "id": "arc-5042-00-hotfix-5-2-2",
+      "chainId": 5042,
+      "txHash": "0xcf6279b0d6165a4c0f9bc14dae2fd8f948217c2600309d036fe05aba432fb06f",
+      "from": "0x4a74f022893e3f1237ef530da2df1d9b4aff4772",
+      "to": "0x47dc7d18a6e3a79f696714e7d47456a49b430d09",
+      "status": 1,
+      "blockNumber": 32744006,
+      "gasUsed": 90524,
+      "logsCount": 3,
+      "recordedAt": "2026-11-23T14:47:49.077659Z"
+    },
+    "arc-5042-02a": {
+      "id": "arc-5042-02a",
+      "chainId": 5042,
+      "txHash": "0x1fb62526ef6bb315e9b4553f485fde77ebcac2c1c9b432c6b0a1db22517f2db3",
+      "from": "0x4a74f022893e3f1237ef530da2df1d9b4aff4772",
+      "to": "0x47dc7d18a6e3a79f696714e7d47456a49b430d09",
+      "status": 1,
+      "blockNumber": 32744188,
+      "gasUsed": 8261202,
+      "logsCount": 34,
+      "recordedAt": "2026-11-23T14:47:49.578432Z"
+    },
+    "arc-5042-02b": {
+      "id": "arc-5042-02b",
+      "chainId": 5042,
+      "txHash": "0x3db22b82581267239fed37e93509da4bd0a23304ae7dcab9378e405379d48674",
+      "from": "0x4a74f022893e3f1237ef530da2df1d9b4aff4772",
+      "to": "0x47dc7d18a6e3a79f696714e7d47456a49b430d09",
+      "status": 1,
+      "blockNumber": 32744551,
+      "gasUsed": 10566607,
+      "logsCount": 41,
+      "recordedAt": "2026-11-23T14:47:49.783805Z"
+    },
+    "arc-5042-02c": {
+      "id": "arc-5042-02c",
+      "chainId": 5042,
+      "txHash": "0x3ade505cf61177bdcc78a782a53fffed8de900a46426507f9367bcea7c30666f",
+      "from": "0x4a74f022893e3f1237ef530da2df1d9b4aff4772",
+      "to": "0x47dc7d18a6e3a79f696714e7d47456a49b430d09",
+      "status": 1,
+      "blockNumber": 32744654,
+      "gasUsed": 10574546,
+      "logsCount": 12,
+      "recordedAt": "2026-11-23T14:47:49.989828Z"
+    },
+    "arc-5042-02d": {
+      "id": "arc-5042-02d",
+      "chainId": 5042,
+      "txHash": "0xc359b72a2fbe3fbff8f910a03e6e50b23486a737495d22fd2d12c2acaccd0ad9",
+      "from": "0x4a74f022893e3f1237ef530da2df1d9b4aff4772",
+      "to": "0x47dc7d18a6e3a79f696714e7d47456a49b430d09",
+      "status": 1,
+      "blockNumber": 32744771,
+      "gasUsed": 4490742,
+      "logsCount": 9,
+      "recordedAt": "2026-11-23T14:47:50.180258Z"
+    },
+    "arc-5042-02e": {
+      "id": "arc-5042-02e",
+      "chainId": 5042,
+      "txHash": "0x5372ee6676e65a8c32aafb8a8bb501fd1235f1eb93317fbbbdd5680fe76d1574",
+      "from": "0x4a74f022893e3f1237ef530da2df1d9b4aff4772",
+      "to": "0x47dc7d18a6e3a79f696714e7d47456a49b430d09",
+      "status": 1,
+      "blockNumber": 32744871,
+      "gasUsed": 7922319,
+      "logsCount": 8,
+      "recordedAt": "2026-11-23T14:47:50.379188Z"
+    },
+    "avax-43114-03a": {
+      "id": "avax-43114-03a",
+      "chainId": 43114,
+      "txHash": "0x01caad26dcbd5ca81421e5362496d3c8980087aedfd129c965d36a071af2b7be",
+      "from": "0x4a74f022893e3f1237ef530da2df1d9b4aff4772",
+      "to": "0xa3a40fa2d82c0224c40b1ed7e07cb474b7d1468b",
+      "status": 1,
+      "blockNumber": 101172276,
+      "gasUsed": 8149019,
+      "logsCount": 30,
+      "recordedAt": "2026-11-23T14:47:50.428283Z"
+    },
+    "avax-43114-03b": {
+      "id": "avax-43114-03b",
+      "chainId": 43114,
+      "txHash": "0x0e44c00649e2dc26f71bc6ce989c4d2bf41c98aa4906e5ad6ac353680a81a312",
+      "from": "0x4a74f022893e3f1237ef530da2df1d9b4aff4772",
+      "to": "0xa3a40fa2d82c0224c40b1ed7e07cb474b7d1468b",
+      "status": 1,
+      "blockNumber": 101172329,
+      "gasUsed": 8841908,
+      "logsCount": 28,
+      "recordedAt": "2026-11-23T14:47:50.906279Z"
+    },
+    "avax-43114-03c": {
+      "id": "avax-43114-03c",
+      "chainId": 43114,
+      "txHash": "0x03a11281033a1e4bf428b6d038393362195af8a42350e37114e9290996b00922",
+      "from": "0x4a74f022893e3f1237ef530da2df1d9b4aff4772",
+      "to": "0xa3a40fa2d82c0224c40b1ed7e07cb474b7d1468b",
+      "status": 1,
+      "blockNumber": 101173287,
+      "gasUsed": 7942231,
+      "logsCount": 8,
+      "recordedAt": "2026-11-23T14:47:50.964012Z"
+    },
+    "base-8453-04a": {
+      "id": "base-8453-04a",
+      "chainId": 8453,
+      "txHash": "0x02afe8cea0b092cab672196a27fde576666d57ee2a7cca221c16c14aab18cae4",
+      "from": "0x46565eedb0bb948ae787dd105cce300f736da28e",
+      "to": "0x781388759eacb9892f60d77d9a99c9be2f7f4ada",
+      "status": 1,
+      "blockNumber": 61269437,
+      "gasUsed": 9288245,
+      "logsCount": 8,
+      "recordedAt": "2026-11-23T14:47:51.504630Z"
+    },
+    "base-8453-04b": {
+      "id": "base-8453-04b",
+      "chainId": 8453,
+      "txHash": "0xf6e6465dbf1c4837678660a956fa8480124022d1bc3c909a4462fde4616f6e50",
+      "from": "0x46565eedb0bb948ae787dd105cce300f736da28e",
+      "to": "0x781388759eacb9892f60d77d9a99c9be2f7f4ada",
+      "status": 1,
+      "blockNumber": 61269670,
+      "gasUsed": 73872,
+      "logsCount": 4,
+      "recordedAt": "2026-11-23T14:47:51.693517Z"
+    }
+  },
+  "chains": {
+    "5042": {
+      "TreasuryConduit": {
+        "address": "0x5dD2e0112B10681e799155676486E1D8aD8c77d7",
+        "codeBytes": 6292,
+        "owner": "0x47dc7d18a6e3a79f696714e7d47456a49b430d09",
+        "sourcify": "exact_match"
+      },
+      "TreasuryConduitPermit2": {
+        "address": "0xc87dfe14675D2F973ED99961cf0b5a82e357FfE6",
+        "codeBytes": 12264,
+        "owner": "0x47dc7d18a6e3a79f696714e7d47456a49b430d09",
+        "sourcify": "exact_match"
+      },
+      "TreasuryBridgeConduitV2": {
+        "address": "0xE74C0A896F52015c3e8f474c30C52C00c56DB3d8",
+        "codeBytes": 12937,
+        "owner": "0x47dc7d18a6e3a79f696714e7d47456a49b430d09",
+        "sourcify": "exact_match"
+      },
+      "TreasuryConduitV3": {
+        "address": "0xbe4b7524576BD9AB2E6D88A8BE74773CcBa4B4E7",
+        "codeBytes": 6284,
+        "owner": "0x47dc7d18a6e3a79f696714e7d47456a49b430d09",
+        "sourcify": "exact_match"
+      },
+      "TreasuryBridgeConduit": {
+        "address": "0xfdC52570590dD8F9801cF501CffFC17C29D7f77e",
+        "codeBytes": 10776,
+        "owner": "0x47dc7d18a6e3a79f696714e7d47456a49b430d09",
+        "sourcify": "exact_match"
+      },
+      "TreasuryBridgeConduitPermit2": {
+        "address": "0xE8C1A1B56FDF3628a30e4EB18274274A12cac3D6",
+        "codeBytes": 18562,
+        "owner": "0x47dc7d18a6e3a79f696714e7d47456a49b430d09",
+        "sourcify": "exact_match"
+      },
+      "TreasurySwapAndDeposit": {
+        "address": "0x3541BfbD564058Be47A0cfFD00291a93A8bd6670",
+        "codeBytes": 4928,
+        "owner": "0x47dc7d18a6e3a79f696714e7d47456a49b430d09",
+        "sourcify": "exact_match"
+      },
+      "BUFIReputationRegistry": {
+        "address": "0x3627cFFF52a1a895Dc2198971B10D3d64d312215",
+        "codeBytes": 4016,
+        "owner": null,
+        "sourcify": "exact_match"
+      },
+      "WorkspaceTierRegistry": {
+        "address": "0x77E2837370f431F0C52bC5236B86BF92EAC2BE06",
+        "codeBytes": 2175,
+        "owner": null,
+        "sourcify": "exact_match"
+      },
+      "WorkspaceOperatingReserve": {
+        "address": "0x3cDEC911Df8345D8d6bFB83d34dCBBfeB4d67605",
+        "codeBytes": 2281,
+        "owner": null,
+        "sourcify": "exact_match"
+      },
+      "InvoiceShelf": {
+        "address": "0xD2FaA2B5044819fda138c7D3B0cfAF3b06E60E8C",
+        "codeBytes": 23825,
+        "owner": null,
+        "sourcify": "exact_match"
+      },
+      "BINV": {
+        "address": "0xB841BF47FEfcb4cAd2cBF7584c2DcB62255ace8D",
+        "codeBytes": 4141,
+        "owner": null,
+        "sourcify": "exact_match"
+      },
+      "BIFTrancheSenior_bIF_A": {
+        "address": "0xDdA5AaDD985f9f16650841979BE9BD9477d82A2D",
+        "codeBytes": 2056,
+        "owner": null,
+        "sourcify": "exact_match"
+      },
+      "BIFTrancheMezzanine_bIF_B": {
+        "address": "0x1136B27a2bfd328f99A9De5E146A55b72036d3a1",
+        "codeBytes": 2056,
+        "owner": null,
+        "sourcify": "exact_match"
+      },
+      "BIFTrancheJunior_bIF_C": {
+        "address": "0x73aB46451999854B515BB875fd7F6cbFFa597689",
+        "codeBytes": 2056,
+        "owner": null,
+        "sourcify": "exact_match"
+      },
+      "MultiTokenReceivableEscrow": {
+        "address": "0x4Aa12CfadAe9e32e55111caD9c98A24C784d9E52",
+        "codeBytes": 5200,
+        "owner": null,
+        "sourcify": "exact_match"
+      },
+      "RecibuMemoRouter": {
+        "address": "0xB9eA41D9a9a9BF2F81a4FC9d22994226F4645b52",
+        "codeBytes": 6982,
+        "owner": null,
+        "sourcify": "exact_match"
+      },
+      "CctpDepositForwarderImplementation": {
+        "address": "0xDe831fe5175D9aBeF63516ff7EA4f02c81223221",
+        "codeBytes": 3190,
+        "owner": null,
+        "sourcify": "exact_match"
+      },
+      "CctpDepositForwarderFactory": {
+        "address": "0x4C3D9249C8FEE9d35B045B09b97fc99CE6CEB8E5",
+        "codeBytes": 2165,
+        "owner": null,
+        "sourcify": "exact_match"
+      },
+      "ClaimVaultDeployer": {
+        "address": "0xA8376Fe8Ef5a6640e39f047c751d7740C10f2cEA",
+        "codeBytes": 58,
+        "owner": null,
+        "sourcify": "exact_match"
+      },
+      "PeanutV4": {
+        "address": "0x75EbdB0065729849bb1A8807718B753374AD2Ca1",
+        "codeBytes": 22302,
+        "owner": "0x47dc7d18a6e3a79f696714e7d47456a49b430d09",
+        "sourcify": "exact_match"
+      },
+      "PayrollBatch": {
+        "address": "0x7DFBb79878a70d1981D0DF76c8262fDddd883FEc",
+        "codeBytes": 11433,
+        "owner": null,
+        "sourcify": "exact_match"
+      }
+    },
+    "43114": {
+      "TreasuryConduit": {
+        "address": "0xe7E3592A5c911C094c401743E5727122579AF153",
+        "codeBytes": 6292,
+        "owner": "0xa3a40fa2d82c0224c40b1ed7e07cb474b7d1468b",
+        "sourcify": "exact_match",
+        "snowtrace": "verified"
+      },
+      "TreasuryConduitPermit2": {
+        "address": "0xfd39bD3147b7dB1382164642c1CC0453395fC6A8",
+        "codeBytes": 12264,
+        "owner": "0xa3a40fa2d82c0224c40b1ed7e07cb474b7d1468b",
+        "sourcify": "exact_match",
+        "snowtrace": "verified"
+      },
+      "TreasuryBridgeConduitV2": {
+        "address": "0xB72563dC5eB2D63e3eE7b0d7e01327018F922ff1",
+        "codeBytes": 12937,
+        "owner": "0xa3a40fa2d82c0224c40b1ed7e07cb474b7d1468b",
+        "sourcify": "exact_match",
+        "snowtrace": "verified"
+      },
+      "TreasuryBridgeConduit": {
+        "address": "0x5891A451F60C36d74367b047D385E360D70f3242",
+        "codeBytes": 10776,
+        "owner": "0xa3a40fa2d82c0224c40b1ed7e07cb474b7d1468b",
+        "sourcify": "exact_match",
+        "snowtrace": "verified"
+      },
+      "TreasuryBridgeConduitPermit2": {
+        "address": "0x92580aDb23973567C8590978aA202768606d26b9",
+        "codeBytes": 18562,
+        "owner": "0xa3a40fa2d82c0224c40b1ed7e07cb474b7d1468b",
+        "sourcify": "exact_match",
+        "snowtrace": "verified"
+      },
+      "CctpDepositForwarderImplementation": {
+        "address": "0xDe831fe5175D9aBeF63516ff7EA4f02c81223221",
+        "codeBytes": 3190,
+        "owner": null,
+        "sourcify": "exact_match",
+        "snowtrace": "verified"
+      },
+      "CctpDepositForwarderFactory": {
+        "address": "0x1E4B7346FbBadAd0b63e7b424f36A6A4C3690354",
+        "codeBytes": 2165,
+        "owner": null,
+        "sourcify": "exact_match",
+        "snowtrace": "verified"
+      },
+      "ClaimVaultDeployer": {
+        "address": "0x05c14dfd71bD9028909ce42c7F6dC645D6DfA927",
+        "codeBytes": 58,
+        "owner": null,
+        "sourcify": "exact_match",
+        "snowtrace": "verified"
+      },
+      "PeanutV4": {
+        "address": "0x334c0c981fbBFff5D93A26F7429a86d97F03778e",
+        "codeBytes": 22302,
+        "owner": "0xa3a40fa2d82c0224c40b1ed7e07cb474b7d1468b",
+        "sourcify": "exact_match",
+        "snowtrace": "verified"
+      },
+      "PayrollBatch": {
+        "address": "0x0eD7f2a1edb378fB8407c1B7E187fd1b5daC25Cf",
+        "codeBytes": 11433,
+        "owner": null,
+        "sourcify": "exact_match",
+        "snowtrace": "verified"
+      }
+    },
+    "8453": {
+      "CctpDepositForwarderImplementation": {
+        "address": "0xDe831fe5175D9aBeF63516ff7EA4f02c81223221",
+        "codeBytes": 3190,
+        "owner": null,
+        "sourcify": "exact_match"
+      },
+      "CctpDepositForwarderFactory": {
+        "address": "0x15d3A8C8Cd938D57D211BaFf2987FacA3B81fd1C",
+        "codeBytes": 2165,
+        "owner": null,
+        "sourcify": "exact_match"
+      },
+      "ClaimVaultDeployer": {
+        "address": "0xA8376Fe8Ef5a6640e39f047c751d7740C10f2cEA",
+        "codeBytes": 58,
+        "owner": null,
+        "sourcify": "exact_match"
+      },
+      "PeanutV4": {
+        "address": "0x75EbdB0065729849bb1A8807718B753374AD2Ca1",
+        "codeBytes": 22302,
+        "owner": "0x47dc7d18a6e3a79f696714e7d47456a49b430d09",
+        "sourcify": "exact_match"
+      },
+      "PayrollBatch": {
+        "address": "0x7DFBb79878a70d1981D0DF76c8262fDddd883FEc",
+        "codeBytes": 11433,
+        "owner": null,
+        "sourcify": "exact_match"
+      }
+    }
+  }
+}
