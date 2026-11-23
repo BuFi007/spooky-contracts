@@ -18,6 +18,8 @@ jobs:
           chmod +x script/build-all.sh script/test-all.sh
           ./script/build-all.sh
           ./script/test-all.sh
+          python3 script/verify_bytecode.py --require-out
+          python3 -B -m unittest script/test_verify_bytecode.py -v
 
   solar:
     name: forge solar
@@ -32,4 +34,3 @@ jobs:
           chmod +x script/build-all.sh script/test-all.sh
           ./script/build-all.sh --use solar
           ./script/test-all.sh --use solar
-          python3 script/verify_bytecode.py --offline
