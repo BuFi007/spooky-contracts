@@ -1,0 +1,79 @@
+version: 2.1
+
+executors:
+  foundry:
+    docker:
+      - image: cimg/base:current-24.04
+    resource_class: large
+    environment:
+      FOUNDRY_VERSION: v1.10.0
+
+commands:
+  install-foundry:
+    steps:
+      - restore_cache:
+          keys:
+            - v1-foundry-{{ arch }}-v1.10.0
+      - run:
+          name: Install Foundry v1.10.0
+          command: |
+            export PATH="$HOME/.foundry/bin:$PATH"
+            echo 'export PATH="$HOME/.foundry/bin:$PATH"' >> "$BASH_ENV"
+            if ! command -v forge >/dev/null 2>&1 || ! forge --version | grep -q "1.10.0"; then
+              curl -fsSL https://foundry.paradigm.xyz | bash
+              "$HOME/.foundry/bin/foundryup" -i "$FOUNDRY_VERSION"
+            fi
+            forge --version
+      - save_cache:
+          key: v1-foundry-{{ arch }}-v1.10.0
+          paths:
+            - ~/.foundry
+
+jobs:
+  forge-solc:
+    executor: foundry
+    steps:
+      - checkout
+      - install-foundry
+      - restore_cache:
+          keys:
+            - v1-svm-{{ arch }}-{{ checksum "foundry.toml" }}
+            - v1-svm-{{ arch }}-
+      - run:
+          name: Build all 10 profiles (solc)
+          command: |
+            chmod +x script/build-all.sh script/test-all.sh
+            ./script/build-all.sh
+      - save_cache:
+          key: v1-svm-{{ arch }}-{{ checksum "foundry.toml" }}
+          paths:
+            - ~/.svm
+      - run:
+          name: Test all 10 profiles (solc)
+          command: ./script/test-all.sh
+      - run:
+          name: Verify canonical solc bytecode and manifests
+          command: |
+            python3 script/verify_bytecode.py --require-out
+            python3 -B -m unittest script/test_verify_bytecode.py -v
+            python3 -B -m unittest script/test_circleci_config.py -v
+
+  forge-solar:
+    executor: foundry
+    steps:
+      - checkout
+      - install-foundry
+      - run:
+          name: Build all 10 profiles (Solar)
+          command: |
+            chmod +x script/build-all.sh script/test-all.sh
+            ./script/build-all.sh --use solar
+      - run:
+          name: Test all 10 profiles (Solar)
+          command: ./script/test-all.sh --use solar
+
+workflows:
+  ci:
+    jobs:
+      - forge-solc
+      - forge-solar
