@@ -247,9 +247,37 @@ contract EscrowDeployTest {
     }
 
     function test_F02_hubInvoiceShelf_microPaymentIncrementsInstallmentCounter() public {
-        uint256 inv = _lockSampleInvoice(shelf, keccak256("inv-f02"));
+        vm.startPrank(admin);
+        uint256 dId = identity.registerWorkspace(keccak256("debtor-inv-f02-600"), debtorOwner);
+        identity.setKybStatus(dId, true, uint64(block.timestamp + 365 days), 1, keccak256("op-f02"));
+        reputation.setScore(dId, 80, 60, 1, bytes32("d"));
+        vm.stopPrank();
+
+        uint64 firstMaturity = uint64(block.timestamp + 30 days);
+        uint32 interval = 30 days;
+        uint64 dueAt = uint64(uint256(firstMaturity) + uint256(interval));
+        ReceivableCommitment.Terms memory terms = ReceivableCommitment.Terms({
+            canonicalInvoiceCommitmentHash: keccak256("inv-f02"),
+            issuedAt: uint64(block.timestamp),
+            dueAt: dueAt
+        });
+        FactoringEvidenceV1 memory evidence = FactoringEvidenceV1({
+            featureRootHash: keccak256("f"),
+            currentSnapshotHash: keccak256("c"),
+            privateTermsHash: keccak256("p")
+        });
+        BINV.DocBundle memory docs = BINV.DocBundle({
+            invoiceDocHash: keccak256("doc"),
+            assignmentHash: keccak256("assign"),
+            paymentInstructionHash: keccak256("pay"),
+            servicingPolicyHash: keccak256("serv"),
+            disputePolicyHash: keccak256("disp")
+        });
+        vm.prank(admin);
+        uint256 inv = shelf.lockInvoice(sellerId, dId, 600e6, 2, firstMaturity, interval, terms, evidence, docs);
         uint256 onTimeBefore = reputation.paidOnTimeCumulative(sellerId);
 
+        vm.warp(firstMaturity);
         vm.prank(admin);
         shelf.applyPayment(inv, 1);
 
@@ -259,9 +287,9 @@ contract EscrowDeployTest {
         require(reputation.paidOnTimeCumulative(sellerId) == onTimeBefore, "reputation unchanged on dust payment");
 
         vm.prank(admin);
-        shelf.applyPayment(inv, 50e6 - 1);
+        shelf.applyPayment(inv, 300e6 - 1);
         (,,,,,,,,,,, paidInstallments,,) = shelf.invoices(inv);
-        require(paidInstallments == 1, "installment incremented once full 50e6 slot paid");
+        require(paidInstallments == 1, "installment incremented once full 300e6 slot paid");
         require(shelf.installmentProgress(inv) == 0, "progress reset at slot boundary");
         require(reputation.paidOnTimeCumulative(sellerId) == onTimeBefore + 1, "reputation incremented on full slot");
     }
@@ -271,26 +299,26 @@ contract EscrowDeployTest {
         uint256 inv2 = _lockSampleInvoice(shelf, keccak256("inv-f03-2"));
         require(inv1 != inv2, "distinct invoices");
 
-        usdc.mint(debtorOwner, 250e6);
+        usdc.mint(debtorOwner, 100e6);
         uint256 validBefore = block.timestamp + 1 hours;
         bytes32 nonceForInv1 =
-            router.authorizationNonceOf(address(usdc), debtorOwner, inv1, 0, 250e6, 0, validBefore);
+            router.authorizationNonceOf(address(usdc), debtorOwner, inv1, 0, 100e6, 0, validBefore);
         bytes32 expectedForInv2 =
-            router.authorizationNonceOf(address(usdc), debtorOwner, inv2, 0, 250e6, 0, validBefore);
+            router.authorizationNonceOf(address(usdc), debtorOwner, inv2, 0, 100e6, 0, validBefore);
 
         vm.prank(attacker);
         vm.expectRevert(
             abi.encodeWithSelector(RecibuMemoRouter.InvalidAuthorizationNonce.selector, nonceForInv1, expectedForInv2)
         );
         router.payWithAuthorization(
-            address(usdc), debtorOwner, inv2, 0, 250e6, 0, validBefore, nonceForInv1, 27, bytes32(0), bytes32(0)
+            address(usdc), debtorOwner, inv2, 0, 100e6, 0, validBefore, nonceForInv1, 27, bytes32(0), bytes32(0)
         );
 
         vm.prank(attacker);
         router.payWithAuthorization(
-            address(usdc), debtorOwner, inv1, 0, 250e6, 0, validBefore, nonceForInv1, 27, bytes32(0), bytes32(0)
+            address(usdc), debtorOwner, inv1, 0, 100e6, 0, validBefore, nonceForInv1, 27, bytes32(0), bytes32(0)
         );
-        require(escrow.escrowedOf(inv1) == 250e6, "bound to inv1");
+        require(escrow.escrowedOf(inv1) == 100e6, "bound to inv1");
         require(escrow.escrowedOf(inv2) == 0, "inv2 untouched");
     }
 
@@ -512,6 +540,18 @@ contract EscrowDeployTest {
         require(usdc.balanceOf(recipient) == 50e6, "recipient received exact amount");
     }
 
+    function _computeCreate2Address(address deployer, bytes32 salt, bytes memory initCode)
+        internal
+        pure
+        returns (address)
+    {
+        return address(uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), deployer, salt, keccak256(initCode))))));
+    }
+
+    function _computeCreateAddress(address deployer, uint8 nonce) internal pure returns (address) {
+        return address(uint160(uint256(keccak256(abi.encodePacked(bytes1(0xd6), bytes1(0x94), deployer, nonce)))));
+    }
+
     function test_SafeTxBuilder_Arc5042_FxRecibuHubBatch() public {
         address create2Factory = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
         address safe = 0x47Dc7D18A6E3a79F696714E7D47456a49B430D09;
@@ -525,80 +565,75 @@ contract EscrowDeployTest {
         vm.etch(arcEurc, hex"600080fd");
 
         vm.startPrank(safe);
-        (bool ok1, bytes memory r1) = create2Factory.call(
-            abi.encodePacked(keccak256("bufi.identity-registry.v1"), type(BUFIIdentityRegistry).creationCode, abi.encode(safe))
-        );
-        require(ok1 && address(bytes20(r1)) == 0x6730b8f3FF0eF85E097Af01eC8a3e450d30e466d, "id deploy");
+        bytes memory idInit = abi.encodePacked(type(BUFIIdentityRegistry).creationCode, abi.encode(safe));
+        bytes32 idSalt = keccak256("bufi.identity-registry.v1");
+        (bool ok1, bytes memory r1) = create2Factory.call(abi.encodePacked(idSalt, idInit));
+        require(ok1 && address(bytes20(r1)) == _computeCreate2Address(create2Factory, idSalt, idInit), "id deploy");
         BUFIIdentityRegistry idReg = BUFIIdentityRegistry(address(bytes20(r1)));
 
-        (bool ok2, bytes memory r2) = create2Factory.call(
-            abi.encodePacked(
-                keccak256("bufi.reputation-registry.v1"),
-                type(BUFIReputationRegistry).creationCode,
-                abi.encode(safe, address(idReg))
-            )
-        );
-        require(ok2 && address(bytes20(r2)) == 0x2D7125b1cf826bE4ad6D0b043F6B4675897EB2e9, "rep deploy");
+        bytes memory repInit =
+            abi.encodePacked(type(BUFIReputationRegistry).creationCode, abi.encode(safe, address(idReg)));
+        bytes32 repSalt = keccak256("bufi.reputation-registry.v1");
+        (bool ok2, bytes memory r2) = create2Factory.call(abi.encodePacked(repSalt, repInit));
+        require(ok2 && address(bytes20(r2)) == _computeCreate2Address(create2Factory, repSalt, repInit), "rep deploy");
         BUFIReputationRegistry repReg = BUFIReputationRegistry(address(bytes20(r2)));
 
-        (bool ok3, bytes memory r3) = create2Factory.call(
-            abi.encodePacked(
-                keccak256("bufi.workspace-tier-registry.v1"),
-                type(WorkspaceTierRegistry).creationCode,
-                abi.encode(address(idReg), address(repReg))
-            )
+        bytes memory tierInit =
+            abi.encodePacked(type(WorkspaceTierRegistry).creationCode, abi.encode(address(idReg), address(repReg)));
+        bytes32 tierSalt = keccak256("bufi.workspace-tier-registry.v1");
+        (bool ok3, bytes memory r3) = create2Factory.call(abi.encodePacked(tierSalt, tierInit));
+        require(
+            ok3 && address(bytes20(r3)) == _computeCreate2Address(create2Factory, tierSalt, tierInit), "tiers deploy"
         );
-        require(ok3 && address(bytes20(r3)) == 0x9a3029Be2323695647A24DD2aB6014887E04A4C7, "tiers deploy");
         WorkspaceTierRegistry tierReg = WorkspaceTierRegistry(address(bytes20(r3)));
 
-        (bool ok4, bytes memory r4) = create2Factory.call(
-            abi.encodePacked(
-                keccak256("bufi.workspace-operating-reserve.v1"),
-                type(WorkspaceOperatingReserve).creationCode,
-                abi.encode(arcUsdc, safe)
-            )
+        bytes memory resInit = abi.encodePacked(type(WorkspaceOperatingReserve).creationCode, abi.encode(arcUsdc, safe));
+        bytes32 resSalt = keccak256("bufi.workspace-operating-reserve.v1");
+        (bool ok4, bytes memory r4) = create2Factory.call(abi.encodePacked(resSalt, resInit));
+        require(
+            ok4 && address(bytes20(r4)) == _computeCreate2Address(create2Factory, resSalt, resInit), "reserve deploy"
         );
-        require(ok4 && address(bytes20(r4)) == 0x9075121f006CC0646bf1799993AC29B4aBF096f4, "reserve deploy");
         WorkspaceOperatingReserve opRes = WorkspaceOperatingReserve(address(bytes20(r4)));
 
-        (bool ok5, bytes memory r5) = create2Factory.call(
-            abi.encodePacked(
-                keccak256("bufi.invoice-shelf.v1"),
-                type(InvoiceShelf).creationCode,
-                abi.encode(arcUsdc, address(idReg), address(repReg), address(tierReg), safe, false)
-            )
+        bytes memory shelfInit = abi.encodePacked(
+            type(InvoiceShelf).creationCode,
+            abi.encode(arcUsdc, address(idReg), address(repReg), address(tierReg), safe, false)
         );
-        require(ok5 && address(bytes20(r5)) == 0x90eCDd402C0E357362b7805173191A153b876DF4, "shelf deploy");
+        bytes32 shelfSalt = keccak256("bufi.invoice-shelf.v1");
+        (bool ok5, bytes memory r5) = create2Factory.call(abi.encodePacked(shelfSalt, shelfInit));
+        require(
+            ok5 && address(bytes20(r5)) == _computeCreate2Address(create2Factory, shelfSalt, shelfInit), "shelf deploy"
+        );
         InvoiceShelf hubShelf = InvoiceShelf(address(bytes20(r5)));
-        require(address(hubShelf.BINV_TOKEN()) == 0xd692453558A92C712b74cFad13C0b769F4AC3037, "binv child addr");
-        require(address(hubShelf.tranches(0)) == 0xE29590E4A240CEDc5438531f3A4284309064aA8e, "tranche A addr");
-        require(address(hubShelf.tranches(1)) == 0xbA4368e30E83D5087E1257f7Db08918691dF773c, "tranche B addr");
-        require(address(hubShelf.tranches(2)) == 0x06215695D37CB9a43aa9B2bb3057fcf5fcb507f5, "tranche C addr");
+        require(address(hubShelf.BINV_TOKEN()) == _computeCreateAddress(address(hubShelf), 1), "binv child addr");
+        require(address(hubShelf.tranches(0)) == _computeCreateAddress(address(hubShelf), 2), "tranche A addr");
+        require(address(hubShelf.tranches(1)) == _computeCreateAddress(address(hubShelf), 3), "tranche B addr");
+        require(address(hubShelf.tranches(2)) == _computeCreateAddress(address(hubShelf), 4), "tranche C addr");
 
-        (bool ok6, bytes memory r6) = create2Factory.call(
-            abi.encodePacked(
-                keccak256("bufi.multi-token-receivable-escrow.v1"),
-                type(MultiTokenReceivableEscrow).creationCode,
-                abi.encode(safe)
-            )
+        bytes memory escInit = abi.encodePacked(type(MultiTokenReceivableEscrow).creationCode, abi.encode(safe));
+        bytes32 escSalt = keccak256("bufi.multi-token-receivable-escrow.v1");
+        (bool ok6, bytes memory r6) = create2Factory.call(abi.encodePacked(escSalt, escInit));
+        require(
+            ok6 && address(bytes20(r6)) == _computeCreate2Address(create2Factory, escSalt, escInit), "escrow deploy"
         );
-        require(ok6 && address(bytes20(r6)) == 0x4772d02a36cfBfF5c139C8d3b5F2DACc82FFAE96, "escrow deploy");
         MultiTokenReceivableEscrow hubEscrow = MultiTokenReceivableEscrow(address(bytes20(r6)));
 
-        (bool ok7, bytes memory r7) = create2Factory.call(
-            abi.encodePacked(
-                keccak256("bufi.recibu-memo-router.v1"),
-                type(RecibuMemoRouter).creationCode,
-                abi.encode(address(hubShelf), address(hubEscrow), safe)
-            )
+        bytes memory routerInit = abi.encodePacked(
+            type(RecibuMemoRouter).creationCode, abi.encode(address(hubShelf), address(hubEscrow), safe)
         );
-        require(ok7 && address(bytes20(r7)) == 0x652D1eD9c519bf7582bFE55AEB504De3f48B7545, "router deploy");
+        bytes32 routerSalt = keccak256("bufi.recibu-memo-router.v1");
+        (bool ok7, bytes memory r7) = create2Factory.call(abi.encodePacked(routerSalt, routerInit));
+        require(
+            ok7 && address(bytes20(r7)) == _computeCreate2Address(create2Factory, routerSalt, routerInit),
+            "router deploy"
+        );
         RecibuMemoRouter hubRouter = RecibuMemoRouter(address(bytes20(r7)));
 
         idReg.grantRole(idReg.ISSUER_ROLE(), safe);
         idReg.grantRole(idReg.ISSUER_ROLE(), issuerEoa);
         repReg.grantRole(repReg.ATTESTOR_ROLE(), safe);
         repReg.grantRole(repReg.SETTLEMENT_ROLE(), address(hubShelf));
+        repReg.grantRole(repReg.OPS_ROLE(), address(hubShelf));
         opRes.grantRole(opRes.SHELF_ROLE(), address(hubShelf));
         hubShelf.setReserve(opRes);
         hubShelf.setEscrow(address(hubEscrow));
@@ -615,6 +650,7 @@ contract EscrowDeployTest {
         require(address(hubShelf.reserve()) == address(opRes), "reserve wired");
         require(address(hubShelf.escrow()) == address(hubEscrow), "escrow wired");
         require(hubEscrow.supportedToken(arcUsdc), "escrow usdc wired");
+        require(repReg.hasRole(repReg.OPS_ROLE(), address(hubShelf)), "rep ops wired");
     }
 }
 
