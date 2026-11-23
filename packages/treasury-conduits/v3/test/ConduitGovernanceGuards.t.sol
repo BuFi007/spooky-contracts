@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {TreasuryBridgeConduit} from "../src/bufi/conduit/TreasuryBridgeConduit.sol";
+import {TreasuryBridgeConduitPermit2} from "../src/bufi/conduit/TreasuryBridgeConduitPermit2.sol";
 import {TreasuryConduit} from "../src/bufi/conduit/TreasuryConduit.sol";
 import {TreasuryRedeemConduit} from "../src/bufi/conduit/TreasuryRedeemConduit.sol";
 import {TreasurySwapAndDeposit} from "../src/bufi/conduit/TreasurySwapAndDeposit.sol";
@@ -43,21 +44,25 @@ contract ConduitGovernanceGuardsTest is Test {
     address internal constant BOOTSTRAP = address(0xB00);
     address internal constant SAFE = address(0x5AFE);
     address internal constant STRANGER = address(0xBAD);
+    address internal constant CANONICAL_PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
     TreasuryConduit internal conduit;
     TreasuryRedeemConduit internal redeem;
     TreasurySwapAndDeposit internal adapter;
     TreasuryBridgeConduit internal bridgeV1;
+    TreasuryBridgeConduitPermit2 internal bridgePermit2;
     MinimalERC20 internal usdc;
 
     event Rescued(address indexed token, address indexed to, uint256 amount);
 
     function setUp() public {
+        vm.etch(CANONICAL_PERMIT2, hex"600080fd");
         usdc = new MinimalERC20();
         conduit = new TreasuryConduit(BOOTSTRAP);
         redeem = new TreasuryRedeemConduit(BOOTSTRAP);
         adapter = new TreasurySwapAndDeposit(BOOTSTRAP, address(usdc));
         bridgeV1 = new TreasuryBridgeConduit(BOOTSTRAP);
+        bridgePermit2 = new TreasuryBridgeConduitPermit2(BOOTSTRAP, CANONICAL_PERMIT2);
     }
 
     function test_conduit_setTarget_refuses_zero() public {
@@ -102,6 +107,8 @@ contract ConduitGovernanceGuardsTest is Test {
         new TreasurySwapAndDeposit(address(0), address(usdc));
         vm.expectRevert(err);
         new TreasuryBridgeConduit(address(0));
+        vm.expectRevert(err);
+        new TreasuryBridgeConduitPermit2(address(0), CANONICAL_PERMIT2);
     }
 
     function test_handover_bootstrap_to_safe_is_two_step_on_every_contract() public {
@@ -109,6 +116,7 @@ contract ConduitGovernanceGuardsTest is Test {
         _assertTwoStep(Ownable2Step(address(redeem)));
         _assertTwoStep(Ownable2Step(address(adapter)));
         _assertTwoStep(Ownable2Step(address(bridgeV1)));
+        _assertTwoStep(Ownable2Step(address(bridgePermit2)));
     }
 
     function test_after_handover_the_bootstrap_key_has_no_power() public {
@@ -133,6 +141,12 @@ contract ConduitGovernanceGuardsTest is Test {
         );
         _assertRenounceDisabled(
             address(adapter), abi.encodeWithSelector(TreasurySwapAndDeposit.RenounceDisabled.selector)
+        );
+        _assertRenounceDisabled(
+            address(bridgeV1), abi.encodeWithSelector(TreasuryBridgeConduit.RenounceDisabled.selector)
+        );
+        _assertRenounceDisabled(
+            address(bridgePermit2), abi.encodeWithSelector(TreasuryBridgeConduit.RenounceDisabled.selector)
         );
     }
 
@@ -212,9 +226,29 @@ contract ConduitGovernanceGuardsTest is Test {
         vm.expectRevert(TreasuryBridgeConduit.ZeroAddress.selector);
         bridgeV1.rescue(address(usdc), address(0));
 
+        vm.expectEmit(true, true, false, true, address(bridgeV1));
+        emit Rescued(address(usdc), SAFE, 5e6);
         bridgeV1.rescue(address(usdc), SAFE);
         vm.stopPrank();
         assertEq(usdc.balanceOf(SAFE), 5e6);
+    }
+
+    function test_adapter_rescue_emits_Rescued_and_enforces_guards() public {
+        vm.startPrank(BOOTSTRAP);
+        vm.expectRevert(TreasurySwapAndDeposit.NothingToSweep.selector);
+        adapter.rescue(address(usdc), SAFE);
+
+        usdc.mint(address(adapter), 7e6);
+        vm.expectRevert(TreasurySwapAndDeposit.ZeroAddress.selector);
+        adapter.rescue(address(0), SAFE);
+        vm.expectRevert(TreasurySwapAndDeposit.ZeroAddress.selector);
+        adapter.rescue(address(usdc), address(0));
+
+        vm.expectEmit(true, true, false, true, address(adapter));
+        emit Rescued(address(usdc), SAFE, 7e6);
+        adapter.rescue(address(usdc), SAFE);
+        vm.stopPrank();
+        assertEq(usdc.balanceOf(SAFE), 7e6);
     }
 }
 

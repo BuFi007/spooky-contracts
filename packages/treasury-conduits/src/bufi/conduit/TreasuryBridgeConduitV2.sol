@@ -54,6 +54,27 @@ interface ICrossChainTokenService {
     /// The per-token TokenManager that locks or burns the token, which is
     /// the address the bridged amount must be approved to.
     function resolveTokenManager(bytes32 tokenId) external view returns (address);
+
+    /// The Circle FeeManager that decodes and validates IRIS-signed fee quotes.
+    function feeService() external view returns (address);
+}
+
+interface ICctpXFeeManager {
+    struct QuoteItem {
+        string quoteType;
+        bytes32 quoteArgsHash;
+        uint256 amount;
+    }
+
+    struct Quote {
+        QuoteItem[] items;
+        uint256 expiry;
+        address feeToken;
+        uint256 nonce;
+        bytes signature;
+    }
+
+    function decodeQuote(bytes calldata signedQuote) external view returns (Quote memory);
 }
 
 /**
@@ -91,29 +112,33 @@ interface ICrossChainTokenService {
  * venue and the keccak of its calldata, both tokens and amounts, the floor, the
  * bridge kind and contract, the destination domain, mint recipient and caller,
  * the protocol fee cap, the finality threshold, the beneficiary, the deadline,
- * memo, and exact platform fee token, amount and recipient. Change any one of them and the authorization no longer
- * redeems. The
- * nonce check runs FIRST, so a tampered intent always reports
- * `NonceIsNotTheIntent` and never a later, less precise error.
+ * memo, and exact platform fee token, amount and recipient. Change any one of
+ * them and the authorization no longer redeems. The nonce check runs FIRST, so
+ * a tampered intent always reports `NonceIsNotTheIntent` and never a later,
+ * less precise error.
  *
  * ## Invariants
  *
  *  1. Funds leave the treasury only under its own quorum-signed authorization
- *     whose nonce commits to the whole intent. Personal input leaves only the
- *     caller, using that caller's own allowance and normal transaction.
+ *     whose nonce commits to the whole intent. `execute` requires an
+ *     owner-allowlisted ERC-3009 token; `executePersonal` pulls only from the
+ *     caller's own allowance on an owner-allowlisted `tokenIn`.
  *  2. The amount burned is the bridge asset THIS transaction delivered to this
  *     contract (balance after the swap minus balance before the pull). It is
  *     at least `minBridgeAmount` and never more than what arrived.
  *  3. The burn receives exactly the signed `destinationDomain`,
  *     `mintRecipient`, `destinationCaller`, `maxFee` and
  *     `minFinalityThreshold`. The bridge must take exactly the burn amount.
- *  4. Afterwards this contract holds none of `tokenIn` or the bridge asset,
- *     and has no allowance left to the venue, the bridge, or the TokenManager.
- *  5. Every leftover goes to the source beneficiary: `auth.from` for the
- *     Treasury path or `msg.sender` for the Personal path.
- *  6. Venues, bridges and CCTPx token ids come from registries owned by the
- *     chain's Safe. They add defence in depth on top of the quorum's binding
- *     signature and never replace it.
+ *  4. Accounting uses per-call balance deltas only: prior/stray balances of
+ *     `tokenIn`, `bridgeAsset`, or native currency already on this contract
+ *     are preserved untouched (recoverable via owner `rescue`), unspent call
+ *     input is returned, and zero allowance remains to the venue, the bridge,
+ *     or the TokenManager.
+ *  5. Every per-call leftover goes to the source beneficiary: `auth.from` for
+ *     the Treasury path or `msg.sender` for the Personal path.
+ *  6. Venues, tokens, bridges and CCTPx token ids come from registries owned
+ *     by the chain's Safe. They add defence in depth on top of the quorum's
+ *     binding signature and never replace it.
  *  7. `execute` is permissionless. The caller pays gas and, on the CCTPx
  *     path, the native protocol fee (`msg.value`), which is capped by the
  *     signed `maxFee`. Treasury funds never pay that fee.
@@ -193,16 +218,23 @@ contract TreasuryBridgeConduitV2 is Ownable2Step, ReentrancyGuard {
         "BridgeIntentV2(address venue,bytes venueData,address tokenIn,uint256 amountIn,address bridgeAsset,uint256 minBridgeAmount,uint8 bridgeKind,address bridge,bytes32 bridgeTokenId,uint32 destinationDomain,bytes32 mintRecipient,bytes32 destinationCaller,uint256 maxFee,uint32 minFinalityThreshold,address beneficiary,uint256 deadline,bytes32 memoId,bytes memo,address platformFeeToken,uint256 platformFeeAmount,address platformFeeRecipient)"
     );
 
+    /// @notice Arc's native-backed USDC ERC-20 interface. Must never be bound to CCTPx.
+    address public constant ARC_NATIVE_USDC = 0x3600000000000000000000000000000000000000;
+
     /// @notice Swap venues an intent may call on this chain.
     mapping(address venue => bool allowed) public targets;
+    /// @notice Tokens allowed to pull funds through `execute` (ERC-3009) and `executePersonal`.
+    mapping(address token => bool allowed) public tokens;
     /// @notice Burn contracts, per rail.
     mapping(BridgeKind kind => mapping(address bridge => bool allowed)) public bridges;
     /// @notice The ERC-20 a CCTPx token id stands for on this chain. Zero = not allowed.
     mapping(bytes32 tokenId => address token) public cctpxTokens;
 
     event TargetSet(address indexed target, bool allowed);
+    event TokenSet(address indexed token, bool allowed);
     event BridgeSet(BridgeKind indexed kind, address indexed bridge, bool allowed);
     event CctpxTokenSet(bytes32 indexed tokenId, address indexed token);
+    event Rescued(address indexed token, address indexed to, uint256 amount);
     event Bridged(
         address indexed treasury,
         bytes32 indexed memoId,
@@ -225,6 +257,7 @@ contract TreasuryBridgeConduitV2 is Ownable2Step, ReentrancyGuard {
     error AmountMismatch(uint256 amountIn, uint256 value);
     error IntentExpired(uint256 deadline, uint256 now_);
     error TargetNotRegistered(address target);
+    error TokenNotRegistered(address token);
     error VenueIsABridge(address venue);
     error SwapTokensIdentical(address token);
     error NoSwapButTokensDiffer(address tokenIn, address bridgeAsset);
@@ -241,10 +274,18 @@ contract TreasuryBridgeConduitV2 is Ownable2Step, ReentrancyGuard {
     error BelowFloor(uint256 burnAmount, uint256 minBridgeAmount);
     error BurnMismatch(uint256 pulled, uint256 burnAmount);
     error ZeroAddress();
+    error ZeroAmount();
     error NothingToSweep();
     error InvalidPlatformFee();
     error ZeroBridgeFloor();
     error PersonalCallerMismatch();
+    error InexactPull();
+    error PriorBalanceConsumed();
+    error InvalidTreasury();
+    error InvalidTarget();
+    error NativeAssetNotAllowed();
+    error InvalidBridgeQuote();
+    error NativeBalanceMismatch();
     error RenounceDisabled();
     event PlatformFeePaid(address indexed payer, address indexed token, address indexed recipient, uint256 amount);
 
@@ -264,6 +305,13 @@ contract TreasuryBridgeConduitV2 is Ownable2Step, ReentrancyGuard {
         emit TargetSet(target, allowed);
     }
 
+    /// @notice Register or retire an allowlisted token for `execute` and `executePersonal`.
+    function setToken(address token, bool allowed) external onlyOwner {
+        if (token == address(0)) revert ZeroAddress();
+        tokens[token] = allowed;
+        emit TokenSet(token, allowed);
+    }
+
     /// @notice Register or retire a burn contract for one rail.
     function setBridge(BridgeKind kind, address bridge, bool allowed) external onlyOwner {
         if (bridge == address(0)) revert ZeroAddress();
@@ -274,12 +322,13 @@ contract TreasuryBridgeConduitV2 is Ownable2Step, ReentrancyGuard {
     /// @notice Bind a CCTPx token id to its ERC-20 on this chain (`address(0)` retires it).
     /// Never bind Arc's native-backed USDC here: USDC goes through CCTP_V2.
     function setCctpxToken(bytes32 tokenId, address token) external onlyOwner {
+        if (token == ARC_NATIVE_USDC) revert NativeAssetNotAllowed();
         cctpxTokens[tokenId] = token;
         emit CctpxTokenSet(tokenId, token);
     }
 
-    // ── the one entry point
-    // ─────────────────────────────────────────────────
+    // ── entry points
+    // ────────────────────────────────────────────────────────
 
     /// @notice The nonce a given intent must be signed under.
     function intentNonce(Intent calldata intent) public pure returns (bytes32) {
@@ -337,28 +386,51 @@ contract TreasuryBridgeConduitV2 is Ownable2Step, ReentrancyGuard {
         bytes calldata bridgeQuote
     ) external payable nonReentrant {
         _check(auth, intent, bridgeQuote);
+        if (!tokens[auth.token]) revert TokenNotRegistered(auth.token);
 
+        IERC20 tokenIn = IERC20(intent.tokenIn);
         IERC20 bridgeAsset = IERC20(intent.bridgeAsset);
-        uint256 bridgeBefore = bridgeAsset.balanceOf(address(this));
+        uint256 nativeBefore = address(this).balance - msg.value;
+        uint256 tokenInBefore = tokenIn.balanceOf(address(this));
+        uint256 bridgeBefore =
+            address(bridgeAsset) == address(tokenIn) ? tokenInBefore : bridgeAsset.balanceOf(address(this));
+        uint256 treasuryInBefore = tokenIn.balanceOf(auth.from);
 
-        // 1. The token moves the funds on the treasury's own signature. `to` is
-        //    this contract, which FiatToken requires to be msg.sender.
         IFiatTokenV2(auth.token)
             .receiveWithAuthorization(
                 auth.from, address(this), auth.value, auth.validAfter, auth.validBefore, auth.nonce, quorumSignature
             );
+        if (
+            tokenIn.balanceOf(address(this)) != tokenInBefore + intent.amountIn
+                || tokenIn.balanceOf(auth.from) + intent.amountIn != treasuryInBefore
+        ) revert InexactPull();
 
-        _executeFunded(auth.from, auth.nonce, intent, bridgeQuote, bridgeBefore);
+        _executeFunded(auth.from, auth.nonce, intent, bridgeQuote, nativeBefore, tokenInBefore, bridgeBefore);
     }
 
     /// @notice A Personal wallet authorizes the complete source operation by its normal transaction.
     /// Principal is pulled only from the caller, never from an arbitrary supplied owner.
     function executePersonal(Intent calldata intent, bytes calldata bridgeQuote) external payable nonReentrant {
+        if (msg.sender == address(this)) revert InvalidTreasury();
         if (msg.sender != intent.beneficiary) revert PersonalCallerMismatch();
         _checkIntent(intent, bridgeQuote);
-        uint256 bridgeBefore = IERC20(intent.bridgeAsset).balanceOf(address(this));
-        IERC20(intent.tokenIn).safeTransferFrom(msg.sender, address(this), intent.amountIn);
-        _executeFunded(msg.sender, intentNonce(intent), intent, bridgeQuote, bridgeBefore);
+        if (!tokens[intent.tokenIn]) revert TokenNotRegistered(intent.tokenIn);
+
+        IERC20 tokenIn = IERC20(intent.tokenIn);
+        IERC20 bridgeAsset = IERC20(intent.bridgeAsset);
+        uint256 nativeBefore = address(this).balance - msg.value;
+        uint256 tokenInBefore = tokenIn.balanceOf(address(this));
+        uint256 bridgeBefore =
+            address(bridgeAsset) == address(tokenIn) ? tokenInBefore : bridgeAsset.balanceOf(address(this));
+        uint256 callerInBefore = tokenIn.balanceOf(msg.sender);
+
+        tokenIn.safeTransferFrom(msg.sender, address(this), intent.amountIn);
+        if (
+            tokenIn.balanceOf(address(this)) != tokenInBefore + intent.amountIn
+                || tokenIn.balanceOf(msg.sender) + intent.amountIn != callerInBefore
+        ) revert InexactPull();
+
+        _executeFunded(msg.sender, intentNonce(intent), intent, bridgeQuote, nativeBefore, tokenInBefore, bridgeBefore);
     }
 
     function _executeFunded(
@@ -366,16 +438,16 @@ contract TreasuryBridgeConduitV2 is Ownable2Step, ReentrancyGuard {
         bytes32 nonce,
         Intent calldata intent,
         bytes calldata bridgeQuote,
+        uint256 nativeBefore,
+        uint256 tokenInBefore,
         uint256 bridgeBefore
     ) private {
         IERC20 tokenIn = IERC20(intent.tokenIn);
         IERC20 bridgeAsset = IERC20(intent.bridgeAsset);
-        // The fee is part of this reverting transaction, so a failed swap/floor/burn cannot charge it.
         if (intent.platformFeeAmount > 0) {
             tokenIn.safeTransfer(intent.platformFeeRecipient, intent.platformFeeAmount);
             emit PlatformFeePaid(from, intent.tokenIn, intent.platformFeeRecipient, intent.platformFeeAmount);
         }
-        // 2. The optional swap: at most the net input after fee, cleared afterwards.
         if (intent.venue != address(0)) {
             tokenIn.forceApprove(intent.venue, intent.amountIn - intent.platformFeeAmount);
             (bool ok, bytes memory ret) = intent.venue.call(intent.venueData);
@@ -383,20 +455,31 @@ contract TreasuryBridgeConduitV2 is Ownable2Step, ReentrancyGuard {
             tokenIn.forceApprove(intent.venue, 0);
         }
 
-        // 3. The measured floor. Only what THIS transaction delivered counts, so
-        //    a stray balance is never burned.
+        if (address(tokenIn) != address(bridgeAsset)) {
+            uint256 inputBeforeBurn = tokenIn.balanceOf(address(this));
+            if (inputBeforeBurn < tokenInBefore) revert PriorBalanceConsumed();
+            uint256 unspentInput = inputBeforeBurn - tokenInBefore;
+            if (unspentInput > 0) tokenIn.safeTransfer(from, unspentInput);
+            if (tokenIn.balanceOf(address(this)) != tokenInBefore) revert PriorBalanceConsumed();
+        }
+
         uint256 held = bridgeAsset.balanceOf(address(this));
+        if (held < bridgeBefore) revert PriorBalanceConsumed();
         uint256 burnAmount = held - bridgeBefore;
         if (burnAmount < intent.minBridgeAmount) revert BelowFloor(burnAmount, intent.minBridgeAmount);
 
-        // 4. The burn, to exactly the signed destination.
         _burn(intent, bridgeAsset, burnAmount, bridgeQuote);
-        uint256 pulled = held - bridgeAsset.balanceOf(address(this));
-        if (pulled != burnAmount) revert BurnMismatch(pulled, burnAmount);
+        uint256 afterBurn = bridgeAsset.balanceOf(address(this));
+        if (afterBurn > held || held - afterBurn != burnAmount) {
+            revert BurnMismatch(afterBurn > held ? 0 : held - afterBurn, burnAmount);
+        }
+        if (address(this).balance != nativeBefore) revert NativeBalanceMismatch();
 
-        // 5. Every leftover token goes back to the treasury.
-        _sweep(tokenIn, from);
-        if (address(bridgeAsset) != address(tokenIn)) _sweep(bridgeAsset, from);
+        if (address(tokenIn) != address(bridgeAsset)) {
+            uint256 expectedInputAfterBurn =
+                address(tokenIn) == ARC_NATIVE_USDC ? nativeBefore / 1e12 : tokenInBefore;
+            if (tokenIn.balanceOf(address(this)) != expectedInputAfterBurn) revert PriorBalanceConsumed();
+        }
 
         emit Bridged(
             from,
@@ -421,6 +504,7 @@ contract TreasuryBridgeConduitV2 is Ownable2Step, ReentrancyGuard {
         if (token == address(0) || to == address(0)) revert ZeroAddress();
         uint256 amount = IERC20(token).balanceOf(address(this));
         if (amount == 0) revert NothingToSweep();
+        emit Rescued(token, to, amount);
         IERC20(token).safeTransfer(to, amount);
     }
 
@@ -431,6 +515,7 @@ contract TreasuryBridgeConduitV2 is Ownable2Step, ReentrancyGuard {
         // The nonce first: any edit to a signed field fails here, precisely.
         bytes32 expected = intentNonce(intent);
         if (auth.nonce != expected) revert NonceIsNotTheIntent(auth.nonce, expected);
+        if (auth.from == address(0) || auth.from == address(this)) revert InvalidTreasury();
         if (intent.beneficiary != auth.from) revert BeneficiaryMismatch(intent.beneficiary, auth.from);
         if (intent.tokenIn != auth.token) revert TokenMismatch(intent.tokenIn, auth.token);
         if (intent.amountIn != auth.value) revert AmountMismatch(intent.amountIn, auth.value);
@@ -450,7 +535,9 @@ contract TreasuryBridgeConduitV2 is Ownable2Step, ReentrancyGuard {
         ) {
             revert InvalidPlatformFee();
         }
-        if (intent.amountIn == 0 || intent.beneficiary == address(0)) revert ZeroAddress();
+        if (intent.amountIn == 0) revert ZeroAmount();
+        if (intent.beneficiary == address(0) || intent.beneficiary == address(this)) revert InvalidTreasury();
+        if (intent.tokenIn == address(0) || intent.bridgeAsset == address(0)) revert ZeroAddress();
         if (block.timestamp > intent.deadline) revert IntentExpired(intent.deadline, block.timestamp);
 
         if (intent.venue == address(0)) {
@@ -461,6 +548,9 @@ contract TreasuryBridgeConduitV2 is Ownable2Step, ReentrancyGuard {
             if (bridges[BridgeKind.CCTP_V2][intent.venue] || bridges[BridgeKind.CCTPX][intent.venue]) {
                 revert VenueIsABridge(intent.venue);
             }
+            if (intent.venue == intent.tokenIn || intent.venue == intent.bridgeAsset || intent.venue == address(this)) {
+                revert InvalidTarget();
+            }
             if (intent.tokenIn == intent.bridgeAsset) revert SwapTokensIdentical(intent.tokenIn);
         }
 
@@ -469,8 +559,6 @@ contract TreasuryBridgeConduitV2 is Ownable2Step, ReentrancyGuard {
 
         if (intent.bridgeKind == BridgeKind.CCTP_V2) {
             if (intent.bridgeTokenId != bytes32(0)) revert UnexpectedBridgeTokenId(intent.bridgeTokenId);
-            // On Arc, native value IS USDC: a fee sent here would inflate the
-            // very balance being measured. CCTP_V2 takes its fee in-token.
             if (msg.value != 0) revert NativeFeeNotAllowed(msg.value);
             if (bridgeQuote.length != 0) revert QuoteNotAllowed();
         } else {
@@ -478,7 +566,6 @@ contract TreasuryBridgeConduitV2 is Ownable2Step, ReentrancyGuard {
             if (registered == address(0) || registered != intent.bridgeAsset) {
                 revert BridgeTokenMismatch(intent.bridgeTokenId, registered, intent.bridgeAsset);
             }
-            // Only EVM destinations for now: the recipient must fit 20 bytes.
             if (uint256(intent.mintRecipient) >> 160 != 0) revert NonEvmRecipient(intent.mintRecipient);
             if (msg.value > intent.maxFee) revert FeeAboveMax(msg.value, intent.maxFee);
         }
@@ -502,14 +589,11 @@ contract TreasuryBridgeConduitV2 is Ownable2Step, ReentrancyGuard {
         }
 
         ICrossChainTokenService ccts = ICrossChainTokenService(intent.bridge);
+        _validateNativeQuote(ccts, intent, bridgeQuote);
         address tokenManager = ccts.resolveTokenManager(intent.bridgeTokenId);
         if (tokenManager == address(0)) revert ZeroAddress();
         bridgeAsset.forceApprove(tokenManager, burnAmount);
 
-        // The whole `msg.value` goes to the service. The FeeManager refunds any
-        // excess over the quoted fee to `refundAddress`, the caller who paid it.
-        // This contract has no `receive`, so it can never be left holding
-        // native value.
         ccts.crossChainTransfer{value: msg.value}(
             intent.bridgeTokenId,
             burnAmount,
@@ -524,8 +608,49 @@ contract TreasuryBridgeConduitV2 is Ownable2Step, ReentrancyGuard {
         bridgeAsset.forceApprove(tokenManager, 0);
     }
 
-    function _sweep(IERC20 token, address to) private {
-        uint256 amount = token.balanceOf(address(this));
-        if (amount > 0) token.safeTransfer(to, amount);
+    function _validateNativeQuote(ICrossChainTokenService ccts, Intent calldata intent, bytes calldata bridgeQuote)
+        private
+        view
+    {
+        if (bridgeQuote.length < 2 || bridgeQuote[0] != 0x01) revert InvalidBridgeQuote();
+        address feeManager = ccts.feeService();
+        if (feeManager.code.length == 0) revert InvalidBridgeQuote();
+        ICctpXFeeManager.Quote memory quote = ICctpXFeeManager(feeManager).decodeQuote(bridgeQuote);
+        if (quote.feeToken != address(0) || quote.signature.length == 0) revert InvalidBridgeQuote();
+        uint256 len = quote.items.length;
+        if (len == 0 || len > 4) revert InvalidBridgeQuote();
+
+        bool seenForward;
+        bool seenProtocol;
+        bool seenPreFinality;
+        uint256 totalFee;
+        for (uint256 i; i < len; ++i) {
+            bytes32 kind = keccak256(bytes(quote.items[i].quoteType));
+            if (kind == keccak256("FORWARD")) {
+                if (seenForward) revert InvalidBridgeQuote();
+                seenForward = true;
+            } else if (kind == keccak256("PROTOCOL")) {
+                if (seenProtocol) revert InvalidBridgeQuote();
+                seenProtocol = true;
+            } else if (kind == keccak256("PRE_FINALITY")) {
+                if (intent.minFinalityThreshold >= 2000 || seenPreFinality) revert InvalidBridgeQuote();
+                seenPreFinality = true;
+            } else {
+                revert InvalidBridgeQuote();
+            }
+            totalFee += quote.items[i].amount;
+        }
+        if (totalFee > intent.maxFee) revert FeeAboveMax(totalFee, intent.maxFee);
+        if (totalFee > msg.value) revert InvalidBridgeQuote();
+
+        uint8 mode = uint8(quote.expiry >> 248);
+        uint256 deadline = quote.expiry & ((uint256(1) << 248) - 1);
+        if (mode == 0) {
+            if (block.timestamp > deadline) revert InvalidBridgeQuote();
+        } else if (mode == 1) {
+            if (block.number > deadline) revert InvalidBridgeQuote();
+        } else {
+            revert InvalidBridgeQuote();
+        }
     }
 }

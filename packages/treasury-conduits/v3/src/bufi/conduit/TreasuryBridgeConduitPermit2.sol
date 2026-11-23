@@ -24,7 +24,6 @@ contract TreasuryBridgeConduitPermit2 is TreasuryBridgeConduit {
 
     mapping(address treasury => mapping(bytes32 operationId => bool)) public executed;
     mapping(address target => mapping(address allowanceTarget => bool)) public permit2Routes;
-    bool private _checkingPermit2Burn;
 
     event Permit2RouteSet(address indexed target, address indexed allowanceTarget, bool allowed);
     event Permit2BridgeSubmitted(
@@ -42,8 +41,6 @@ contract TreasuryBridgeConduitPermit2 is TreasuryBridgeConduit {
     error OperationAlreadyExecuted();
     error Permit2RouteNotRegistered();
     error InexactInput();
-    error PriorBalanceConsumed();
-    error AllowanceMismatch(address token, address spender, uint256 expected, uint256 actual);
 
     constructor(address initialOwner, address permit2_) TreasuryBridgeConduit(initialOwner) {
         if (permit2_ != CANONICAL_PERMIT2 || permit2_.code.length == 0) revert InvalidPermit2Deployment();
@@ -88,8 +85,8 @@ contract TreasuryBridgeConduitPermit2 is TreasuryBridgeConduit {
         bytes calldata bridgeQuote
     ) external payable nonReentrant {
         if (
-            treasury.code.length == 0 || operationId == bytes32(0) || intent.amountIn == 0
-                || intent.minBridgeAmount == 0
+            treasury == address(this) || treasury.code.length == 0 || operationId == bytes32(0)
+                || intent.amountIn == 0 || intent.minBridgeAmount == 0
         ) {
             revert InvalidPermit2Intent();
         }
@@ -105,14 +102,19 @@ contract TreasuryBridgeConduitPermit2 is TreasuryBridgeConduit {
         );
         if (intent.venue == address(0)) {
             if (allowanceTarget != address(0)) revert InvalidPermit2Intent();
-        } else if (!permit2Routes[intent.venue][allowanceTarget]) {
-            revert Permit2RouteNotRegistered();
+        } else {
+            if (intent.venue == address(permit2)) revert InvalidPermit2Intent();
+            if (!permit2Routes[intent.venue][allowanceTarget]) {
+                revert Permit2RouteNotRegistered();
+            }
         }
 
         IERC20 tokenIn = IERC20(intent.tokenIn);
         IERC20 bridgeAsset = IERC20(intent.bridgeAsset);
+        uint256 nativeBefore = address(this).balance - msg.value;
         uint256 inputBefore = tokenIn.balanceOf(address(this));
-        uint256 bridgeBefore = bridgeAsset.balanceOf(address(this));
+        uint256 bridgeBefore =
+            address(bridgeAsset) == address(tokenIn) ? inputBefore : bridgeAsset.balanceOf(address(this));
         uint256 treasuryBefore = tokenIn.balanceOf(treasury);
         bytes32 intentHash = permit2BridgeIntentHash(treasury, operationId, documentCommitment, allowanceTarget, intent);
         executed[treasury][operationId] = true;
@@ -138,27 +140,32 @@ contract TreasuryBridgeConduitPermit2 is TreasuryBridgeConduit {
             _requireAllowance(tokenIn, allowanceTarget, 0);
         }
 
+        if (address(tokenIn) != address(bridgeAsset)) {
+            uint256 inputBeforeBurn = tokenIn.balanceOf(address(this));
+            if (inputBeforeBurn < inputBefore) revert PriorBalanceConsumed();
+            uint256 refund = inputBeforeBurn - inputBefore;
+            if (refund > 0) {
+                uint256 beforeRefund = tokenIn.balanceOf(treasury);
+                tokenIn.safeTransfer(treasury, refund);
+                if (tokenIn.balanceOf(treasury) != beforeRefund + refund) revert InexactInput();
+            }
+            if (tokenIn.balanceOf(address(this)) != inputBefore) revert PriorBalanceConsumed();
+        }
+
         uint256 held = bridgeAsset.balanceOf(address(this));
         if (held < bridgeBefore) revert PriorBalanceConsumed();
         uint256 burnAmount = held - bridgeBefore;
         if (burnAmount < intent.minBridgeAmount) revert BelowFloor(burnAmount, intent.minBridgeAmount);
-        _checkingPermit2Burn = true;
-        _burn(intent, bridgeAsset, burnAmount, bridgeQuote);
-        _checkingPermit2Burn = false;
+        _burn(intent, bridgeAsset, burnAmount, bridgeQuote, true);
         uint256 afterBurn = bridgeAsset.balanceOf(address(this));
         if (afterBurn > held || held - afterBurn != burnAmount) {
             revert BurnMismatch(afterBurn > held ? 0 : held - afterBurn, burnAmount);
         }
-        uint256 inputAfter = tokenIn.balanceOf(address(this));
-        if (inputAfter < inputBefore) revert PriorBalanceConsumed();
-        if (inputAfter > inputBefore) {
-            uint256 refund = inputAfter - inputBefore;
-            uint256 beforeRefund = tokenIn.balanceOf(treasury);
-            tokenIn.safeTransfer(treasury, refund);
-            if (tokenIn.balanceOf(treasury) != beforeRefund + refund) revert InexactInput();
-        }
-        if (tokenIn.balanceOf(address(this)) != inputBefore || bridgeAsset.balanceOf(address(this)) != bridgeBefore) {
-            revert PriorBalanceConsumed();
+        if (address(this).balance != nativeBefore) revert NativeBalanceMismatch();
+        if (address(tokenIn) != address(bridgeAsset)) {
+            uint256 expectedInputAfterBurn =
+                address(tokenIn) == ARC_NATIVE_USDC ? nativeBefore / 1e12 : inputBefore;
+            if (tokenIn.balanceOf(address(this)) != expectedInputAfterBurn) revert PriorBalanceConsumed();
         }
 
         emit Bridged(
@@ -177,15 +184,5 @@ contract TreasuryBridgeConduitPermit2 is TreasuryBridgeConduit {
             intent.memo
         );
         emit Permit2BridgeSubmitted(treasury, operationId, documentCommitment, intentHash, permit.nonce, burnAmount);
-    }
-
-    function _checkBridgeAllowance(IERC20 token, address spender, uint256 expected) internal view override {
-        // Preserve inherited ERC-3009 behavior; only this adapter's Permit2 burn opts in.
-        if (_checkingPermit2Burn) _requireAllowance(token, spender, expected);
-    }
-
-    function _requireAllowance(IERC20 token, address spender, uint256 expected) private view {
-        uint256 actual = token.allowance(address(this), spender);
-        if (actual != expected) revert AllowanceMismatch(address(token), spender, expected, actual);
     }
 }

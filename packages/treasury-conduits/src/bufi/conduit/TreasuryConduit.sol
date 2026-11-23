@@ -44,15 +44,21 @@ import {IFiatTokenV2} from "./interfaces/IFiatTokenV2.sol";
  * ## Invariants
  *
  *  1. Funds leave the treasury only under its own quorum-signed authorization
- *     whose nonce commits to the whole intent.
- *  2. This contract holds nothing between transactions: after the call, every
- *     balance of `tokenIn` and `tokenOut` it has is swept to `auth.from`.
- *  3. The beneficiary of every outcome is `auth.from`: proceeds are delivered
- *     to it, positions open in its name, and the floor is measured on ITS
- *     balance of `tokenOut`.
+ *     whose nonce commits to the whole intent. `execute` requires an
+ *     owner-allowlisted ERC-3009 token.
+ *  2. Sweeps use per-call balance deltas only: prior/stray balances of
+ *     `tokenIn` or `tokenOut` already on this contract are preserved untouched
+ *     (recoverable via owner `rescue`), while unspent call input and call
+ *     proceeds are forwarded to `auth.from`.
+ *  3. `tokenOut` proceeds must be delivered to this conduit before being
+ *     forwarded to `auth.from`; `minOut` is measured on this conduit's call
+ *     delta and verified on `auth.from`'s post-transfer delta (when calling
+ *     `TreasurySwapAndDeposit` via `TreasuryConduit`, sign
+ *     `beneficiary = address(conduit)`).
  *  4. `execute` is permissionless. The agent DCW pays gas today; anyone may.
- *  5. Targets come from a registry the BUFI ops multisig maintains — defence
- *     in depth on top of the quorum's binding signature, never instead of it.
+ *  5. Targets and ERC-3009 tokens come from registries the BUFI ops multisig
+ *     maintains — defence in depth on top of the quorum's binding signature,
+ *     never instead of it.
  *
  * A failed step reverts the transaction, which un-does the token pull: the
  * nonce stays unused and the treasury balance is exactly what it was.
@@ -118,8 +124,12 @@ contract TreasuryConduit is Ownable2Step, ReentrancyGuard {
 
     /// @notice Protocol contracts an intent may call on this chain.
     mapping(address target => bool allowed) public targets;
+    /// @notice ERC-3009 tokens allowed to pull funds through `execute`.
+    mapping(address token => bool allowed) public tokens;
 
     event TargetSet(address indexed target, bool allowed);
+    event TokenSet(address indexed token, bool allowed);
+    event Rescued(address indexed token, address indexed to, uint256 amount);
     event Executed(
         address indexed treasury,
         bytes32 indexed memoId,
@@ -138,10 +148,16 @@ contract TreasuryConduit is Ownable2Step, ReentrancyGuard {
     error NonceIsNotTheIntent(bytes32 nonce, bytes32 expected);
     error IntentExpired(uint256 deadline, uint256 now_);
     error TargetNotRegistered(address target);
+    error TokenNotRegistered(address token);
     error TargetCallFailed(bytes reason);
     error BelowFloor(uint256 gained, uint256 minOut);
     error NothingToSweep();
     error ZeroAddress();
+    error ZeroAmount();
+    error InexactPull();
+    error PriorBalanceConsumed();
+    error InvalidTarget();
+    error InvalidTreasury();
     error RenounceDisabled();
 
     constructor(address initialOwner) Ownable(initialOwner) {}
@@ -158,6 +174,13 @@ contract TreasuryConduit is Ownable2Step, ReentrancyGuard {
         if (target == address(0)) revert ZeroAddress();
         targets[target] = allowed;
         emit TargetSet(target, allowed);
+    }
+
+    /// @notice Register or retire an ERC-3009 token for `execute`.
+    function setToken(address token, bool allowed) external onlyOwner {
+        if (token == address(0)) revert ZeroAddress();
+        tokens[token] = allowed;
+        emit TokenSet(token, allowed);
     }
 
     // ── the one entry point
@@ -193,41 +216,73 @@ contract TreasuryConduit is Ownable2Step, ReentrancyGuard {
         external
         nonReentrant
     {
+        if (auth.from == address(0) || auth.from == address(this)) revert InvalidTreasury();
         if (intent.beneficiary != auth.from) revert BeneficiaryMismatch(intent.beneficiary, auth.from);
         if (intent.tokenIn != auth.token) revert TokenMismatch(intent.tokenIn, auth.token);
         if (intent.amountIn != auth.value) revert AmountMismatch(intent.amountIn, auth.value);
+        if (intent.amountIn == 0) revert ZeroAmount();
+        if (intent.tokenOut == address(0)) revert ZeroAddress();
         bytes32 expected = intentNonce(intent);
         if (auth.nonce != expected) revert NonceIsNotTheIntent(auth.nonce, expected);
         if (block.timestamp > intent.deadline) revert IntentExpired(intent.deadline, block.timestamp);
+        if (!tokens[auth.token]) revert TokenNotRegistered(auth.token);
         if (!targets[intent.target]) revert TargetNotRegistered(intent.target);
+        if (intent.target == intent.tokenIn || intent.target == intent.tokenOut || intent.target == address(this)) {
+            revert InvalidTarget();
+        }
 
+        IERC20 tokenIn = IERC20(intent.tokenIn);
         IERC20 tokenOut = IERC20(intent.tokenOut);
-        uint256 before = tokenOut.balanceOf(auth.from);
+        uint256 conduitInBefore = tokenIn.balanceOf(address(this));
+        uint256 conduitOutBefore =
+            address(tokenOut) == address(tokenIn) ? conduitInBefore : tokenOut.balanceOf(address(this));
+        uint256 treasuryInBefore = tokenIn.balanceOf(auth.from);
 
-        // 1. The token moves the funds on the treasury's own signature. `to` is
-        //    this contract, which FiatToken requires to be msg.sender.
         IFiatTokenV2(auth.token)
             .receiveWithAuthorization(
                 auth.from, address(this), auth.value, auth.validAfter, auth.validBefore, auth.nonce, quorumSignature
             );
+        if (
+            tokenIn.balanceOf(address(this)) != conduitInBefore + intent.amountIn
+                || tokenIn.balanceOf(auth.from) + intent.amountIn != treasuryInBefore
+        ) revert InexactPull();
 
-        // 2. Exactly the redeemed amount, never MAX_UINT, and cleared afterwards.
-        IERC20 tokenIn = IERC20(intent.tokenIn);
         tokenIn.forceApprove(intent.target, intent.amountIn);
         (bool ok, bytes memory ret) = intent.target.call(intent.data);
         if (!ok) revert TargetCallFailed(ret);
         tokenIn.forceApprove(intent.target, 0);
 
-        // 3. Whatever this contract holds now belongs to the treasury — the
-        //    proceeds (a swap delivered here), the input (a partial fill), both.
-        _sweep(tokenIn, auth.from);
-        if (address(tokenOut) != address(tokenIn)) _sweep(tokenOut, auth.from);
+        uint256 conduitInAfter = tokenIn.balanceOf(address(this));
+        if (conduitInAfter < conduitInBefore) revert PriorBalanceConsumed();
+        uint256 inRefund = conduitInAfter - conduitInBefore;
 
-        // 4. The reviewed floor, measured where it matters: on the treasury.
-        uint256 afterBal = tokenOut.balanceOf(auth.from);
-        if (afterBal < before) revert BelowFloor(0, intent.minOut);
-        uint256 gained = afterBal - before;
-        if (gained < intent.minOut) revert BelowFloor(gained, intent.minOut);
+        uint256 gained;
+        if (address(tokenOut) == address(tokenIn)) {
+            uint256 recipientGained;
+            if (inRefund > 0) {
+                uint256 recipientBefore = tokenIn.balanceOf(auth.from);
+                tokenIn.safeTransfer(auth.from, inRefund);
+                uint256 recipientAfter = tokenIn.balanceOf(auth.from);
+                if (recipientAfter < recipientBefore) revert BelowFloor(0, intent.minOut);
+                recipientGained = recipientAfter - recipientBefore;
+            }
+            gained = recipientGained > intent.amountIn ? recipientGained - intent.amountIn : 0;
+            if (gained < intent.minOut) revert BelowFloor(gained, intent.minOut);
+        } else {
+            if (inRefund > 0) tokenIn.safeTransfer(auth.from, inRefund);
+            uint256 conduitOutAfter = tokenOut.balanceOf(address(this));
+            if (conduitOutAfter < conduitOutBefore) revert PriorBalanceConsumed();
+            uint256 outProceeds = conduitOutAfter - conduitOutBefore;
+            if (outProceeds < intent.minOut) revert BelowFloor(outProceeds, intent.minOut);
+            if (outProceeds > 0) {
+                uint256 recipientBefore = tokenOut.balanceOf(auth.from);
+                tokenOut.safeTransfer(auth.from, outProceeds);
+                uint256 recipientAfter = tokenOut.balanceOf(auth.from);
+                if (recipientAfter < recipientBefore) revert BelowFloor(0, intent.minOut);
+                gained = recipientAfter - recipientBefore;
+                if (gained < intent.minOut) revert BelowFloor(gained, intent.minOut);
+            }
+        }
 
         emit Executed(
             auth.from,
@@ -251,11 +306,7 @@ contract TreasuryConduit is Ownable2Step, ReentrancyGuard {
         if (token == address(0) || to == address(0)) revert ZeroAddress();
         uint256 amount = IERC20(token).balanceOf(address(this));
         if (amount == 0) revert NothingToSweep();
+        emit Rescued(token, to, amount);
         IERC20(token).safeTransfer(to, amount);
-    }
-
-    function _sweep(IERC20 token, address to) private {
-        uint256 amount = token.balanceOf(address(this));
-        if (amount > 0) token.safeTransfer(to, amount);
     }
 }
